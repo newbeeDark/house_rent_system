@@ -1,0 +1,136 @@
+:root {
+  --color-bg: #0f172a;
+  --color-surface: #111827;
+  --color-text: #e5e7eb;
+  --color-muted: #9ca3af;
+  --color-primary: #6366f1;
+  --color-border: #1f2937;
+  --radius: 12px;
+}
+
+[data-theme="light"] {
+  --color-bg: #f9fafb;
+  --color-surface: #ffffff;
+  --color-text: #111827;
+  --color-muted: #6b7280;
+  --color-primary: #4f46e5;
+  --color-border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+  color: var(--color-text);
+  background: linear-gradient(180deg, var(--color-bg), var(--color-surface));
+}
+
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.35);
+}
+
+.title { font-size: 24px; margin: 0 0 8px; }
+.subtitle { color: var(--color-muted); margin-bottom: 16px; }
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  border-color: var(--color-primary);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--color-border);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field { display: grid; gap: 6px; margin-bottom: 12px; }
+.label { font-size: 12px; color: var(--color-muted); }
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  outline: none;
+}
+.input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent); }
+.select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text); }
+
+.actions { display: grid; gap: 10px; margin-top: 8px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-outline { background: transparent; color: var(--color-primary); }
+.row { display: flex; justify-content: space-between; align-items: center; }
+
+.header { position: fixed; top: 12px; right: 12px; }
+.toggle {
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+/* 登录页专用样式（中文注释）：现代简约背景与卡片加厚阴影 */
+.auth-bg {
+  background: radial-gradient(1200px 600px at 10% -10%, rgba(99,102,241,.25), transparent),
+              radial-gradient(1200px 600px at 90% 110%, rgba(79,70,229,.25), transparent),
+              linear-gradient(180deg, var(--color-bg), var(--color-surface));
+}
+.auth-card { backdrop-filter: saturate(1.2) blur(4px); }
+.link { color: var(--color-primary); }
+.link:hover { text-decoration: underline; }
