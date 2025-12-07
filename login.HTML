@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Login - UKM Students off School Rented System</title>
+
+<style>
+  /* palette & theme adapted from Home page */
+  :root{
+    --bg: #f6f8fb;
+    --card-bg: rgba(255,255,255,0.12); /* base for glass card */
+    --card-border: rgba(255,255,255,0.32);
+    --accent: #1e88ff;
+    --accent-2: #0b3d91;
+    --ink: #071028;
+    --muted: #e6eef9; /* lighter for text on glass */
+    --muted-dark: #6a7480; /* for on-card muted text */
+    --radius:14px;
+    --shadow-lg: 0 20px 60px rgba(7,12,25,0.28);
+    --shadow-sm: 0 8px 26px rgba(8,12,24,0.06);
+    --ease: cubic-bezier(.2,.9,.2,1);
+    --success: #20c997;
+    --danger: #ff6b6b;
+  }
+
+  /* base: background image + soft white overlay to ensure readability */
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial;
+    color:var(--ink);
+    /* Background image (use provided file). overlay gradient provides consistent contrast */
+    background:
+      linear-gradient( rgba(255,255,255,0.72), rgba(255,255,255,0.72) ),
+      url("real-estate-9539531_1920.jpg") center/cover no-repeat fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* page wrapper centers the card */
+  .page{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    box-sizing:border-box;
+    background-attachment: fixed;
+  }
+
+  /* glassmorphism card */
+  .card {
+    width:420px;
+    max-width:96vw;
+    border-radius:calc(var(--radius) + 6px);
+
+    /* frosted glass */
+    background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06));
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
+
+    /* subtle inner highlight + drop shadow */
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.06);
+    padding:28px;
+    transition: transform 420ms var(--ease), box-shadow 320ms var(--ease);
+    transform: translateY(6px);
+    overflow:visible;
+  }
+  .card:hover{
+    transform: translateY(0);
+    box-shadow: 0 28px 84px rgba(7,12,25,0.30);
+  }
+
+  /* small decorative vignette to increase contrast around card */
+  .card::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:calc(var(--radius) + 6px);
+    pointer-events:none;
+    box-shadow: 0 10px 40px rgba(7,12,25,0.06);
+    mix-blend-mode: normal;
+  }
+
+  /* header / logo */
+  .logo {
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:14px;
+  }
+  .logo .icon{
+    width:56px;height:44px;border-radius:10px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    color:#fff;font-weight:700;box-shadow:0 10px 30px rgba(14,54,120,0.08);
+    font-size:15px;
+  }
+  .logo .title{font-weight:700;font-size:16px;color:rgba(7,16,36,0.95)}
+  .logo .subtitle{font-size:12px;color:var(--muted-dark);margin-top:2px}
+
+  /* form */
+  form{ display:flex;flex-direction:column; gap:12px; margin-top:6px; }
+  .field {
+    display:flex;flex-direction:column;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border-radius:12px;padding:10px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 220ms var(--ease), box-shadow 220ms var(--ease);
+    border:1px solid rgba(255,255,255,0.04);
+    overflow:hidden;
+  }
+  .field:focus-within{
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(8,12,24,0.06);
+    border:1px solid rgba(30,136,255,0.16);
+  }
+
+  label{ font-size:13px;color:var(--muted-dark); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+  input[type="email"], input[type="password"]{
+    border:0; outline:0; background:transparent; font-size:15px;
+    padding:6px 2px; color: rgba(2,6,23,0.9);
+  }
+  input::placeholder{ color: rgba(169,177,187,0.95); font-weight:500; }
+
+  .row { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+  .remember { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; font-size:14px; color:var(--muted-dark); }
+
+  .switch { width:44px;height:26px;border-radius:999px;background:rgba(7,16,38,0.06); position:relative; padding:3px; box-sizing:border-box; transition: background 240ms var(--ease); }
+  .switch .dot { width:20px;height:20px;border-radius:50%; background:white; box-shadow: 0 6px 14px rgba(2,6,23,0.08); transform:translateX(0); transition: transform 260ms var(--ease); }
+  .switch.on{ background: linear-gradient(90deg,var(--accent),var(--accent-2)); }
+  .switch.on .dot{ transform:translateX(18px); }
+
+  .btn {
+    margin-top:6px;
+    border:0; outline:0;
+    padding:12px 16px; border-radius:12px; font-size:16px;
+    background: linear-gradient(90deg,var(--accent),var(--accent-2));
+    color:white; font-weight:600; cursor:pointer;
+    box-shadow: 0 10px 26px rgba(14,54,120,0.10);
+    transition: transform 160ms var(--ease), box-shadow 160ms var(--ease), opacity 160ms var(--ease);
+  }
+  .btn:active{ transform:translateY(2px) scale(.998); }
+  .btn[aria-busy="true"]{ opacity:0.85; pointer-events:none; }
+
+  .alt { margin-top:10px; text-align:center; font-size:13px; color:var(--muted-dark); }
+  .alt a{ color:var(--accent); text-decoration:none; font-weight:600; }
+
+  .msg { padding:10px 12px;border-radius:10px;font-size:13px; display:none;margin-top:4px; }
+  .msg.show{ display:block; animation: pop 320ms var(--ease); }
+  .msg.error{ background: rgba(255,107,107,0.12); color:var(--danger); border:1px solid rgba(255,107,107,0.12); }
+  .msg.ok{ background: rgba(32,201,151,0.08); color:var(--success); border:1px solid rgba(32,201,151,0.08); }
+  @keyframes pop { from { transform: translateY(-6px) scale(.98); opacity:0 } to { transform: none; opacity:1 } }
+
+  .helper { display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:var(--muted-dark); }
+
+  .small { font-size:12px;color:var(--muted-dark); text-align:center; margin-top:10px; }
+
+  /* subtle card backdrop border glow to match accent */
+  .card .accent-ring{
+    position:absolute;
+    pointer-events:none;
+    inset:auto -8px -8px auto;
+    width:80px;height:80px;border-radius:24px;
+    background: radial-gradient(circle at 30% 30%, rgba(30,136,255,0.08), transparent 40%);
+    mix-blend-mode: screen;
+  }
+
+  @media (max-width:420px){
+    .card{ padding:18px; border-radius:12px; width:92vw }
+    .logo .icon{ width:48px;height:40px;border-radius:10px; font-size:13px }
+  }
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <main class="card" role="main" aria-labelledby="page-title">
+      <div class="accent-ring" aria-hidden="true"></div>
+
+      <header class="logo" aria-hidden="false">
+        <div class="icon" aria-hidden="true">UKM</div>
+        <div>
+          <div class="title" id="page-title">UKM Students off School Rented System</div>
+          <div class="subtitle">Sign in to find & manage off-campus housing</div>
+        </div>
+      </header>
+
+      <form id="loginForm" novalidate>
+        <!-- email -->
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="your@email.com" required autocomplete="email" />
+        </div>
+
+        <!-- password -->
+        <div class="field">
+          <label for="password">
+            <span>Password</span>
+            <a href="forgot.html" id="forgotLink" style="font-size:13px;color:var(--accent);text-decoration:none;">Forgot?</a>
+          </label>
+          <input id="password" name="password" type="password" placeholder="Enter your password" required autocomplete="current-password" />
+        </div>
+
+        <!-- remember row -->
+        <div class="row">
+          <label class="remember" for="remember">
+            <div id="remember" class="switch" role="checkbox" aria-checked="false" tabindex="0">
+              <div class="dot"></div>
+            </div>
+            <span>Remember me</span>
+          </label>
+
+          <div style="font-size:13px;color:var(--muted-dark);">Need an account?
+            <a href="register.html" style="color:var(--accent);font-weight:600;text-decoration:none;margin-left:6px;">Register</a>
+          </div>
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn" aria-busy="false">Sign In</button>
+
+        <div id="message" class="msg error" role="alert" aria-live="polite"></div>
+
+        <div class="helper" style="margin-top:10px;">
+          <div class="hint" style="font-size:13px;color:var(--muted-dark)">
+            By signing in you agree to the
+            <a href="terms.html" target="_blank" style="color:var(--accent);text-decoration:none;margin:0 6px">Terms</a>
+            and
+            <a href="privacy.html" target="_blank" style="color:var(--accent-2);text-decoration:none;margin-left:6px">Privacy</a>.
+          </div>
+          <div style="font-size:12px;color:var(--muted-dark)"></div>
+        </div>
+
+        <div class="small">If you have trouble signing in, contact support.</div>
+      </form>
+    </main>
+  </div>
+
+<script>
+  (function(){
+    const remember = document.getElementById('remember');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('loginForm');
+    const msg = document.getElementById('message');
+
+    function toggleRemember(byKeyboard=false){
+      const on = remember.classList.toggle('on');
+      remember.classList.toggle('on', on);
+      remember.setAttribute('aria-checked', on ? 'true' : 'false');
+      remember.animate([{ transform: 'scale(1)' }, { transform: 'scale(0.98)' }, { transform: 'scale(1)'}], { duration: 180, easing: 'ease-out' });
+    }
+    remember.addEventListener('click', ()=> toggleRemember());
+    remember.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleRemember(true); }
+    });
+
+    function showMessage(text, type='error'){
+      msg.textContent = text;
+      msg.className = 'msg ' + (type === 'error' ? 'error' : 'ok') + ' show';
+      setTimeout(()=> { msg.classList.remove('show'); }, 4200);
+    }
+
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      msg.classList.remove('show');
+
+      const email = form.email.value.trim();
+      const password = form.password.value.trim();
+
+      if(!email){ showMessage('Please enter your email.'); form.email.focus(); return; }
+      if(!password){ showMessage('Please enter your password.'); form.password.focus(); return; }
+
+      submitBtn.setAttribute('aria-busy','true');
+      submitBtn.textContent = 'Signing in…';
+
+      setTimeout(()=>{
+        // demo rule: password length >=6 is success; replace with real API call
+        if(password.length >= 6){
+          showMessage('Signed in successfully — redirecting...', 'ok');
+          submitBtn.textContent = 'Success';
+          // redirect to home (index.html) — adjust to your actual home/dashboard path
+          setTimeout(()=> { window.location.href = 'index.html'; }, 800);
+        } else {
+          showMessage('Invalid credentials. Please check your email and password.');
+          submitBtn.setAttribute('aria-busy','false');
+          submitBtn.textContent = 'Sign In';
+          form.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }], { duration: 420, easing: 'cubic-bezier(.2,.9,.2,1)' });
+        }
+      }, 900);
+    });
+
+    window.addEventListener('load', ()=> { document.getElementById('email').focus(); });
+  })();
+</script>
+</body>
+</html>

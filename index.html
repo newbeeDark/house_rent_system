@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Home — UKM Students off School Rented System</title>
+
+<style>
+  /* Theme variables */
+  :root{
+    --bg:#f6f8fb;
+    --card-bg: rgba(255,255,255,0.88);
+    --accent: #1e88ff;
+    --accent-2: #0b3d91;
+    --ink: #071028;
+    --muted: #6a7480;
+    --radius:14px;
+    --shadow-lg: 0 18px 40px rgba(7,12,25,0.12);
+    --ease: cubic-bezier(.2,.9,.2,1);
+  }
+
+  /* Base */
+  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial;color:var(--ink);background:linear-gradient(180deg,#eef3fb,#fff);-webkit-font-smoothing:antialiased}
+  .page{min-height:100vh;display:flex;flex-direction:column;gap:18px;padding:20px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}
+
+  @keyframes pageIn { to { opacity:1; transform:none } }
+
+  /* Appbar */
+  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,0.75), rgba(255,255,255,0.6));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:calc(var(--radius)+6px);padding:12px 16px;box-shadow:var(--shadow-lg)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:44px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;font-weight:700;box-shadow:0 8px 22px rgba(14,54,120,0.12)}
+  .title{font-weight:700;font-size:15px}
+  .subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+
+  nav.actions{display:flex;gap:8px;align-items:center}
+  nav.actions a, .btn {font-size:14px;padding:8px 12px;border-radius:10px;border:0;text-decoration:none;cursor:pointer;transition:transform 160ms var(--ease), box-shadow 160ms var(--ease)}
+  .btn:hover{transform:translateY(-2px)}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;box-shadow:0 10px 28px rgba(14,54,120,0.12)}
+  .btn-ghost{background:transparent;border:1px solid rgba(12,20,40,0.06);color:var(--accent-2)}
+  .guest-pill{background:linear-gradient(90deg, rgba(11,61,145,0.08), rgba(30,136,255,0.06));color:var(--accent-2);font-weight:600}
+
+  /* layout */
+  .main{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+  @media(max-width:1000px){ .main{grid-template-columns:1fr} }
+
+  /* search panel */
+  .search-panel{background:var(--card-bg);border-radius:14px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
+  .search-row{display:flex;gap:8px;align-items:center}
+  .search-row input, .search-row select{flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(10,18,30,0.06);font-size:14px;background:white}
+  .small-hint{font-size:13px;color:var(--muted);margin-top:8px}
+
+  /* location display */
+  .location-bar{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .loc-chip{padding:8px 10px;border-radius:10px;background:linear-gradient(90deg,rgba(30,136,255,0.06),rgba(30,136,255,0.02));color:var(--accent-2);font-weight:600;display:flex;gap:8px;align-items:center}
+  .addr{font-size:13px;color:var(--muted);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* listings */
+  .listings{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+  .listing-card{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,252,255,0.96));border:1px solid rgba(10,16,28,0.02);box-shadow:0 6px 20px rgba(8,12,24,0.04);opacity:0;transform:translateY(8px);animation:cardIn 420ms var(--ease) forwards}
+  @keyframes cardIn { to { opacity:1; transform:none } }
+  .listing-card:hover{transform:translateY(-8px);box-shadow:0 26px 50px rgba(8,12,24,0.08)}
+  .thumb{width:140px;height:96px;border-radius:10px;background-size:cover;background-position:center;flex-shrink:0;box-shadow:0 8px 20px rgba(10,20,40,0.06)}
+  .info{flex:1;display:flex;flex-direction:column;gap:6px}
+  .title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .title{font-weight:700}
+  .meta{font-size:13px;color:var(--muted)}
+  .tags{display:flex;gap:8px;flex-wrap:wrap}
+  .tag{padding:6px 8px;border-radius:999px;font-size:12px;background:rgba(11,61,145,0.06);color:var(--accent-2);font-weight:600}
+  .nearby{background:linear-gradient(90deg,#e6f2ff,#eef7ff);color:var(--accent-2);border:1px solid rgba(30,136,255,0.08);animation:nearbyPulse 2s infinite ease-in-out}
+  @keyframes nearbyPulse { 0%{box-shadow:0 0 0 rgba(30,136,255,0.06)}50%{box-shadow:0 6px 20px rgba(30,136,255,0.06)}100%{box-shadow:0 0 0 rgba(30,136,255,0.06)} }
+
+  .actions-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+  .price{font-weight:800;color:var(--accent-2);font-size:16px}
+  .distance{font-size:13px;color:var(--muted);margin-left:8px}
+  .heart{margin-left:auto;padding:8px;border-radius:10px;cursor:pointer;border:1px solid rgba(10,16,28,0.04);background:transparent;transition:transform 180ms var(--ease)}
+  .heart:hover{transform:scale(1.06)}
+  .heart.fav{color:var(--danger);transform:scale(1.06)}
+
+  /* sidebar */
+  .sidebar{background:var(--card-bg);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.05);height:fit-content}
+  .map-placeholder{height:160px;border-radius:10px;background:linear-gradient(180deg,#e9f2ff,#f7fbff);display:grid;place-items:center;color:var(--muted);font-weight:600}
+  .nearby-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .mini{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;background:rgba(255,255,255,0.6);transition:transform 160ms var(--ease)}
+  .mini:hover{transform:translateX(6px)}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:60}
+  .modal{width:min(520px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
+
+  /* toast */
+  .__toast{transition:opacity 240ms var(--ease)}
+
+  /* responsive tweaks */
+  @media (max-width:720px){
+    .logo{display:none}
+    .addr{max-width:60%}
+  }
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <header class="appbar" role="banner" aria-label="Top navigation">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">UKM</div>
+        <div>
+          <div class="title">UKM Students off School Rented System</div>
+          <div class="subtitle">Find trusted off-campus housing near you</div>
+        </div>
+      </div>
+
+      <nav class="actions" role="navigation" aria-label="Main actions">
+        <a href="terms.html" class="link-muted" title="Terms">Terms</a>
+        <a href="privacy.html" class="link-muted" title="Privacy">Privacy</a>
+        <a href="register.html" class="link-muted" title="Register">Register</a>
+        <a href="login.html" class="btn btn-ghost" title="Sign in">Log in</a>
+        <button id="guestBtn" class="btn btn-primary guest-pill" title="Continue as guest">Continue as Guest</button>
+      </nav>
+    </header>
+
+    <main class="main" role="main">
+      <section>
+        <div class="search-panel" role="search" aria-label="Search rentals">
+          <div style="display:flex;gap:10px;align-items:center">
+            <input id="q" type="text" placeholder="Search by area, landmark, or keyword" aria-label="Search" />
+            <select id="filter" aria-label="Price filter">
+              <option value="all">All prices</option>
+              <option value="low">Under RM 500</option>
+              <option value="mid">RM 500 - RM 1000</option>
+              <option value="high">Over RM 1000</option>
+            </select>
+            <button id="locBtn" class="btn btn-ghost" title="Use my location">Use my location</button>
+          </div>
+
+          <div class="location-bar" id="locationBar" style="display:none">
+            <div class="loc-chip" id="locChip">📍 Nearby</div>
+            <div class="addr" id="addrText">Detecting your address…</div>
+            <button id="refreshAddr" class="btn btn-ghost" title="Refresh address" style="margin-left:auto">Refresh</button>
+          </div>
+
+          <div class="small-hint">System will prioritize nearby listings if you allow location access.</div>
+        </div>
+
+        <div id="listings" class="listings" aria-live="polite" style="margin-top:12px">
+          <!-- JS injects listing cards -->
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="Sidebar">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Nearby highlights</div>
+          <div style="font-size:13px;color:var(--muted)">Auto-prioritize</div>
+        </div>
+
+        <div class="map-placeholder" id="mapArea">No map — only textual addresses</div>
+
+        <div style="margin-top:12px;font-weight:700">Closest listings</div>
+        <div id="nearbyList" class="nearby-list" aria-live="polite"></div>
+      </aside>
+    </main>
+
+    <footer class="site-footer" style="text-align:center;color:var(--muted);font-size:13px;padding:10px 0">
+      © 2025 UKM Students off School Rented System — demo UI. Links: <a href="login.html">Login</a> · <a href="register.html">Register</a>
+    </footer>
+  </div>
+
+  <!-- modal -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">Sign in required</h3>
+      <p id="modalText">This feature requires an account. Please sign in or register to use it.</p>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <a href="login.html" class="btn btn-ghost">Sign in</a>
+        <button id="modalClose" class="btn btn-primary">Continue as Guest</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------- Mock properties ---------- */
+const properties = [
+  { id:1, title:"Studio near UKM - 5 min", lat:2.9245, lon:101.7750, price:450, beds:1, area:"Bangi", img:"https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=60", rating:4.6 },
+  { id:2, title:"Cozy 1BR, close to bus stop", lat:2.9305, lon:101.7802, price:600, beds:1, area:"Taman UKM", img:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=60", rating:4.4 },
+  { id:3, title:"Shared room (female-friendly)", lat:2.9408, lon:101.7722, price:350, beds:1, area:"Bangi Baru", img:"https://images.unsplash.com/photo-1598928506311-87e0ffb13243?auto=format&fit=crop&w=800&q=60", rating:4.1 },
+  { id:4, title:"2BR apartment — quiet neighbourhood", lat:2.9198, lon:101.7729, price:1200, beds:2, area:"Seksyen 3", img:"https://images.unsplash.com/photo-1600585153762-2a4f0f7e5931?auto=format&fit=crop&w=800&q=60", rating:4.8 },
+  { id:5, title:"Budget room with study desk", lat:2.9271, lon:101.7805, price:400, beds:1, area:"Near UKM Gate", img:"https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=800&q=60", rating:4.0 },
+  { id:6, title:"Luxury condo 10min drive", lat:2.9550, lon:101.7850, price:2200, beds:3, area:"Kajang", img:"https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=60", rating:4.9 }
+];
+
+/* ---------- Utilities ---------- */
+function haversineKm(lat1, lon1, lat2, lon2){
+  const toRad = v => v*Math.PI/180;
+  const R = 6371;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R*c;
+}
+function sanitize(s){ return String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* ---------- State ---------- */
+let userLocation = null;
+let userAddress = null;
+let isGuest = false;
+
+/* ---------- DOM ---------- */
+const listingsEl = document.getElementById('listings');
+const nearbyListEl = document.getElementById('nearbyList');
+const locBtn = document.getElementById('locBtn');
+const guestBtn = document.getElementById('guestBtn');
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalClose = document.getElementById('modalClose');
+const locationBar = document.getElementById('locationBar');
+const addrText = document.getElementById('addrText');
+const locChip = document.getElementById('locChip');
+const refreshAddr = document.getElementById('refreshAddr');
+
+/* ---------- Rendering ---------- */
+function renderListings(sortedProperties){
+  listingsEl.innerHTML = '';
+  sortedProperties.forEach((p, idx)=>{
+    const d = p.distance !== undefined ? (p.distance<1 ? (p.distance*1000).toFixed(0)+' m' : p.distance.toFixed(2)+' km') : '';
+    const near = p.distance !== undefined && p.distance <= 1.2;
+    const card = document.createElement('article');
+    card.className = 'listing-card';
+    // stagger entrance
+    card.style.animationDelay = (idx * 60) + 'ms';
+    card.innerHTML = `
+      <div class="thumb" style="background-image:url('${p.img}')" aria-hidden="true"></div>
+      <div class="info">
+        <div class="title-row">
+          <div>
+            <div class="title">${sanitize(p.title)}</div>
+            <div class="meta">${sanitize(p.area)} · ${p.beds} bed · Rating ${p.rating}</div>
+          </div>
+          <div class="tags">
+            ${near ? '<div class="tag nearby">Nearby</div>' : ''}
+            <div class="tag">Top pick</div>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <div class="price">RM ${p.price}</div>
+          <div class="distance">${d}</div>
+          <button class="heart" data-id="${p.id}" title="Add to favourites" aria-label="Add to favourites">
+            ♡
+          </button>
+          <a class="btn btn-ghost" href="property.html?id=${p.id}" style="margin-left:8px">View</a>
+        </div>
+      </div>
+    `;
+    listingsEl.appendChild(card);
+  });
+}
+
+function renderNearby(sortedProperties){
+  nearbyListEl.innerHTML = '';
+  const top = sortedProperties.slice(0,4);
+  top.forEach(p=>{
+    const d = p.distance !== undefined ? (p.distance<1 ? (p.distance*1000).toFixed(0)+' m' : p.distance.toFixed(2)+' km') : '';
+    const mini = document.createElement('div');
+    mini.className = 'mini';
+    mini.innerHTML = `<div style="width:12px;height:12px;border-radius:6px;background:${p.distance<=1.2?'var(--accent)':'#bfc9d9'}"></div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${sanitize(p.title)}</div>
+        <div style="font-size:13px;color:var(--muted)">${d} · RM ${p.price}</div>
+      </div>
+      <div style="font-weight:800;color:var(--accent-2)">RM ${p.price}</div>`;
+    nearbyListEl.appendChild(mini);
+  });
+}
+
+/* ---------- Sorting ---------- */
+function sortProperties(baseList){
+  const arr = baseList.map(p => ({...p}));
+  if(userLocation){
+    arr.forEach(p => p.distance = haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon));
+    arr.sort((a,b) => a.distance - b.distance || a.price - b.price);
+  } else {
+    arr.sort((a,b) => a.price - b.price || b.rating - a.rating);
+  }
+  return arr;
+}
+
+/* ---------- Geolocation + Reverse geocoding (Nominatim) ---------- */
+async function requestLocationAndAddress(){
+  if(!navigator.geolocation){
+    showToast('Geolocation not supported by browser.');
+    return;
+  }
+  locBtn.textContent = 'Locating…';
+  try{
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy:true, timeout:12000 });
+    });
+    userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    // save optional
+    try{ localStorage.setItem('ukm_last_loc', JSON.stringify(userLocation)); }catch(e){}
+    // reverse geocode using Nominatim (OpenStreetMap) — lightweight call
+    addrText.textContent = 'Resolving address…';
+    locationBar.style.display = 'flex';
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lon}&format=jsonv2`;
+    // include a referer-like header not possible from browser; respect rate limits for production
+    const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if(!resp.ok) throw new Error('Reverse geocode failed');
+    const data = await resp.json();
+    // data.display_name contains readable address; fallback to neighbourhood or town
+    userAddress = data.display_name || (data.address && (data.address.neighbourhood || data.address.suburb || data.address.city || data.address.town)) || null;
+    if(userAddress){
+      addrText.textContent = userAddress;
+      locChip.textContent = `📍 ${data.address && (data.address.city || data.address.town || data.address.village) ? data.address.city || data.address.town || data.address.village : 'Nearby'}`;
+    } else {
+      addrText.textContent = 'Unable to resolve address';
+      locChip.textContent = '📍 Nearby';
+    }
+    locBtn.textContent = 'Use my location (on)';
+    updateView();
+  }catch(err){
+    console.warn('Location/address error', err);
+    locBtn.textContent = 'Use my location';
+    addrText.textContent = 'Location unavailable or permission denied';
+    locationBar.style.display = 'flex';
+    showToast('Location unavailable or permission denied. Showing default listings.');
+    updateView();
+  }
+}
+
+/* Refresh address handler (re-run reverse geocode) */
+refreshAddr.addEventListener('click', ()=>{
+  if(userLocation) requestLocationAndAddress();
+  else showToast('No known location. Click "Use my location" first.');
+});
+
+/* ---------- Guest and favourites ---------- */
+guestBtn.addEventListener('click', ()=>{
+  isGuest = true;
+  guestBtn.textContent = 'Browsing as Guest';
+  guestBtn.disabled = true;
+  showToast('You are browsing as a guest. Login to unlock favourites & bookings.');
+});
+
+document.addEventListener('click', (e)=>{
+  const t = e.target.closest('.heart');
+  if(t){
+    if(isGuest){
+      openModal('Sign in required', 'You must sign in to add to your favourites. Would you like to sign in now?');
+      return;
+    }
+    // toggle favourite with animated feedback
+    if(t.classList.contains('fav')){
+      t.classList.remove('fav');
+      t.textContent = '♡';
+      showToast('Removed from favourites');
+    } else {
+      t.classList.add('fav');
+      t.textContent = '♥';
+      // heart pop animation
+      t.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 340, easing: 'cubic-bezier(.2,.9,.2,1)' });
+      showToast('Added to favourites');
+    }
+  }
+});
+
+/* Modal helpers */
+function openModal(title, text){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalText').textContent = text;
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+}
+modalClose.addEventListener('click', ()=>{
+  modalBackdrop.style.display = 'none';
+  modalBackdrop.setAttribute('aria-hidden','true');
+});
+modalBackdrop.addEventListener('click', (e)=>{ if(e.target === modalBackdrop){ modalBackdrop.style.display = 'none'; modalBackdrop.setAttribute('aria-hidden','true'); } });
+
+/* toast */
+let toastTimer = null;
+function showToast(text){
+  let el = document.querySelector('.__toast');
+  if(!el){
+    el = document.createElement('div');
+    el.className = '__toast';
+    el.style.position = 'fixed';
+    el.style.left = '50%';
+    el.style.bottom = '24px';
+    el.style.transform = 'translateX(-50%)';
+    el.style.background = 'linear-gradient(90deg,var(--accent),var(--accent-2))';
+    el.style.color = '#fff';
+    el.style.padding = '8px 14px';
+    el.style.borderRadius = '10px';
+    el.style.boxShadow = '0 10px 30px rgba(14,54,120,0.12)';
+    el.style.zIndex = 80;
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.style.opacity = '1';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.style.opacity = '0', 3200);
+}
+
+/* ---------- Search/filter handlers ---------- */
+document.getElementById('q').addEventListener('input', (e)=>{
+  filterAndRender();
+});
+document.getElementById('filter').addEventListener('change', ()=>{
+  filterAndRender();
+});
+
+/* ---------- Core update view ---------- */
+function updateView(){
+  const sorted = sortProperties(properties);
+  renderListings(sorted);
+  renderNearby(sorted);
+  // reflect address in page if available
+  const mapArea = document.getElementById('mapArea');
+  if(userAddress) mapArea.textContent = `Your current address: ${userAddress}`;
+  else mapArea.textContent = 'Address unavailable — showing area names only';
+}
+
+/* ---------- Filtering + sorting ---------- */
+function filterAndRender(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const f = document.getElementById('filter').value;
+  let filtered = properties.filter(p => p.title.toLowerCase().includes(q) || p.area.toLowerCase().includes(q));
+  if(f === 'low') filtered = filtered.filter(p => p.price < 500);
+  if(f === 'mid') filtered = filtered.filter(p => p.price >=500 && p.price <= 1000);
+  if(f === 'high') filtered = filtered.filter(p => p.price > 1000);
+  const sorted = sortProperties(filtered);
+  renderListings(sorted);
+  renderNearby(sorted);
+}
+
+/* ---------- Sorting (uses userLocation if set) ---------- */
+function sortProperties(baseList){
+  const arr = baseList.map(p => ({...p}));
+  if(userLocation){
+    arr.forEach(p => p.distance = haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon));
+    arr.sort((a,b) => a.distance - b.distance || a.price - b.price);
+  } else {
+    arr.forEach(p => p.distance = undefined);
+    arr.sort((a,b) => a.price - b.price || b.rating - a.rating);
+  }
+  return arr;
+}
+
+/* ---------- Init: try cached location, then render ---------- */
+(function init(){
+  const stored = localStorage.getItem('ukm_last_loc');
+  if(stored){
+    try{ userLocation = JSON.parse(stored); }catch(e){}
+  }
+  // If have cached location, try reverse geocoding to update address
+  if(userLocation){
+    // lightweight reverse geocode
+    (async ()=> {
+      try{
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lon}&format=jsonv2`;
+        const resp = await fetch(url);
+        if(resp.ok){
+          const data = await resp.json();
+          userAddress = data.display_name || null;
+          if(userAddress){
+            locationBar.style.display = 'flex';
+            addrText.textContent = userAddress;
+            locChip.textContent = `📍 ${data.address && (data.address.city || data.address.town || data.address.village) ? data.address.city || data.address.town || data.address.village : 'Nearby'}`;
+          }
+        }
+      }catch(e){ /* ignore */ }
+      updateView();
+    })();
+  } else {
+    updateView();
+  }
+})();
+
+/* ---------- Bind location button ---------- */
+locBtn.addEventListener('click', () => {
+  requestLocationAndAddress();
+});
+
+/* ---------- Permissions: attempt to pre-fill if granted ---------- */
+if(navigator.permissions){
+  navigator.permissions.query({name:'geolocation'}).then(per => {
+    if(per.state === 'granted'){
+      // Attempt to get and display once
+      navigator.geolocation.getCurrentPosition(pos => {
+        userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        localStorage.setItem('ukm_last_loc', JSON.stringify(userLocation));
+        requestLocationAndAddress();
+      }, ()=>{/* ignore */}, { enableHighAccuracy:true });
+    }
+  }).catch(()=>{ /* ignore */ });
+}
+</script>
+</body>
+</html>
