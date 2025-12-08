@@ -14,39 +14,104 @@
     --accent-2: #0b3d91;
     --ink: #071028;
     --muted: #6a7480;
+    --danger: #ff6b6b;
     --radius:14px;
     --shadow-lg: 0 18px 40px rgba(7,12,25,0.12);
     --ease: cubic-bezier(.2,.9,.2,1);
+    --fast: 220ms;
+    --mid: 420ms;
+    --slow: 780ms;
   }
 
   /* Base */
-  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial;color:var(--ink);background:linear-gradient(180deg,#eef3fb,#fff);-webkit-font-smoothing:antialiased}
-  .page{min-height:100vh;display:flex;flex-direction:column;gap:18px;padding:20px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial;
+    color:var(--ink);
+    background:linear-gradient(180deg,#eef3fb,#fff);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
 
+  .page{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    padding:20px;
+    box-sizing:border-box;
+    opacity:0;
+    transform:translateY(10px);
+    animation:pageIn var(--mid) var(--ease) forwards;
+  }
   @keyframes pageIn { to { opacity:1; transform:none } }
 
   /* Appbar */
-  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,0.75), rgba(255,255,255,0.6));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:calc(var(--radius)+6px);padding:12px 16px;box-shadow:var(--shadow-lg)}
+  header.appbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    background:linear-gradient(180deg,rgba(255,255,255,0.8), rgba(255,255,255,0.65));
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius:calc(var(--radius) + 6px);
+    padding:12px 16px;
+    box-shadow:var(--shadow-lg);
+    opacity:0; transform:translateY(-8px);
+    animation:fadeDown var(--mid) var(--ease) 120ms forwards;
+  }
+  @keyframes fadeDown { to { opacity:1; transform:none } }
+
   .brand{display:flex;gap:12px;align-items:center}
-  .logo{width:52px;height:44px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;font-weight:700;box-shadow:0 8px 22px rgba(14,54,120,0.12)}
+  .logo{
+    width:52px;height:44px;border-radius:10px;
+    display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    color:white;font-weight:700;
+    box-shadow:0 8px 26px rgba(14,54,120,0.12);
+    transform:translateY(0);
+    animation:logoFloat 4200ms ease-in-out infinite;
+  }
+  @keyframes logoFloat { 0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)} }
+
   .title{font-weight:700;font-size:15px}
   .subtitle{font-size:12px;color:var(--muted);margin-top:2px}
 
   nav.actions{display:flex;gap:8px;align-items:center}
-  nav.actions a, .btn {font-size:14px;padding:8px 12px;border-radius:10px;border:0;text-decoration:none;cursor:pointer;transition:transform 160ms var(--ease), box-shadow 160ms var(--ease)}
-  .btn:hover{transform:translateY(-2px)}
-  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;box-shadow:0 10px 28px rgba(14,54,120,0.12)}
-  .btn-ghost{background:transparent;border:1px solid rgba(12,20,40,0.06);color:var(--accent-2)}
-  .guest-pill{background:linear-gradient(90deg, rgba(11,61,145,0.08), rgba(30,136,255,0.06));color:var(--accent-2);font-weight:600}
+  nav.actions a, .btn {
+    font-size:14px;padding:8px 12px;border-radius:10px;border:0;text-decoration:none;cursor:pointer;
+    transition:transform 200ms var(--ease), box-shadow 200ms var(--ease), opacity 160ms;
+    background:transparent;color:var(--accent-2);
+  }
+  .btn:hover{ transform:translateY(-3px) }
+  .btn-primary{ background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:#fff; box-shadow:0 10px 28px rgba(14,54,120,0.12) }
+  .btn-ghost{ background:transparent; border:1px solid rgba(12,20,40,0.06); color:var(--accent-2) }
+  .guest-pill{ background:linear-gradient(90deg, rgba(11,61,145,0.08), rgba(30,136,255,0.06)); color:var(--accent-2); font-weight:600 }
 
   /* layout */
-  .main{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+  .hero { display:flex; gap:18px; align-items:center; }
+  .hero-left { flex:1; display:flex; flex-direction:column; gap:12px; }
+  .main{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start;margin-top:6px}
   @media(max-width:1000px){ .main{grid-template-columns:1fr} }
 
   /* search panel */
-  .search-panel{background:var(--card-bg);border-radius:14px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
+  .search-panel{
+    background:var(--card-bg); border-radius:14px; padding:14px;
+    box-shadow:0 8px 26px rgba(8,12,24,0.06); backdrop-filter:blur(6px);
+    transform:translateY(10px); opacity:0;
+  }
+  .search-panel.in-view{ animation:fadeUp var(--mid) var(--ease) forwards; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+
   .search-row{display:flex;gap:8px;align-items:center}
-  .search-row input, .search-row select{flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(10,18,30,0.06);font-size:14px;background:white}
+  .search-row input, .search-row select{
+    flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(10,18,30,0.06);font-size:14px;background:white;
+    transition: box-shadow 160ms var(--ease), transform 120ms var(--ease);
+  }
+  .search-row input:focus{ box-shadow:0 8px 20px rgba(14,54,120,0.06); transform: translateY(-2px); outline:none }
+
   .small-hint{font-size:13px;color:var(--muted);margin-top:8px}
 
   /* location display */
@@ -54,20 +119,36 @@
   .loc-chip{padding:8px 10px;border-radius:10px;background:linear-gradient(90deg,rgba(30,136,255,0.06),rgba(30,136,255,0.02));color:var(--accent-2);font-weight:600;display:flex;gap:8px;align-items:center}
   .addr{font-size:13px;color:var(--muted);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-  /* listings */
+  /* list + cards */
   .listings{display:flex;flex-direction:column;gap:12px;margin-top:12px}
-  .listing-card{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,252,255,0.96));border:1px solid rgba(10,16,28,0.02);box-shadow:0 6px 20px rgba(8,12,24,0.04);opacity:0;transform:translateY(8px);animation:cardIn 420ms var(--ease) forwards}
-  @keyframes cardIn { to { opacity:1; transform:none } }
-  .listing-card:hover{transform:translateY(-8px);box-shadow:0 26px 50px rgba(8,12,24,0.08)}
-  .thumb{width:140px;height:96px;border-radius:10px;background-size:cover;background-position:center;flex-shrink:0;box-shadow:0 8px 20px rgba(10,20,40,0.06)}
+  .listing-card{
+    display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,252,255,0.96));
+    border:1px solid rgba(10,16,28,0.02);box-shadow:0 6px 20px rgba(8,12,24,0.04);
+    opacity:0; transform:translateY(14px) scale(0.995) rotateX(0deg);
+    transform-origin: left top;
+    transition: transform 420ms cubic-bezier(.2,.9,.2,1), box-shadow 420ms cubic-bezier(.2,.9,.2,1);
+    will-change: transform, opacity, filter;
+  }
+
+  /* reveal animation (we add .in-view when visible) */
+  @keyframes cardIn {
+    from { opacity:0; transform:translateY(18px) scale(0.994); filter: blur(2px); }
+    to { opacity:1; transform:none; filter:none; }
+  }
+  .listing-card.in-view{ animation: cardIn var(--mid) var(--ease) both; }
+
+  .listing-card:hover{ transform:translateY(-8px) scale(1.01); box-shadow:0 34px 70px rgba(8,12,24,0.12) }
+
+  .thumb{width:140px;height:96px;border-radius:10px;background-size:cover;background-position:center;flex-shrink:0;box-shadow:0 10px 30px rgba(10,20,40,0.06)}
   .info{flex:1;display:flex;flex-direction:column;gap:6px}
   .title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
   .title{font-weight:700}
   .meta{font-size:13px;color:var(--muted)}
   .tags{display:flex;gap:8px;flex-wrap:wrap}
   .tag{padding:6px 8px;border-radius:999px;font-size:12px;background:rgba(11,61,145,0.06);color:var(--accent-2);font-weight:600}
-  .nearby{background:linear-gradient(90deg,#e6f2ff,#eef7ff);color:var(--accent-2);border:1px solid rgba(30,136,255,0.08);animation:nearbyPulse 2s infinite ease-in-out}
-  @keyframes nearbyPulse { 0%{box-shadow:0 0 0 rgba(30,136,255,0.06)}50%{box-shadow:0 6px 20px rgba(30,136,255,0.06)}100%{box-shadow:0 0 0 rgba(30,136,255,0.06)} }
+  .nearby{background:linear-gradient(90deg,#e6f2ff,#eef7ff);color:var(--accent-2);border:1px solid rgba(30,136,255,0.08);animation:nearbyPulse 2.6s infinite ease-in-out}
+  @keyframes nearbyPulse { 0%{box-shadow:0 0 0 rgba(30,136,255,0.04)}50%{box-shadow:0 10px 30px rgba(30,136,255,0.04)}100%{box-shadow:0 0 0 rgba(30,136,255,0.04)} }
 
   .actions-row{display:flex;align-items:center;gap:8px;margin-top:6px}
   .price{font-weight:800;color:var(--accent-2);font-size:16px}
@@ -77,24 +158,41 @@
   .heart.fav{color:var(--danger);transform:scale(1.06)}
 
   /* sidebar */
-  .sidebar{background:var(--card-bg);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.05);height:fit-content}
-  .map-placeholder{height:160px;border-radius:10px;background:linear-gradient(180deg,#e9f2ff,#f7fbff);display:grid;place-items:center;color:var(--muted);font-weight:600}
+  .sidebar{background:var(--card-bg);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.05);height:fit-content;transform:translateY(10px);opacity:0}
+  .sidebar.in-view{ animation:fadeUp var(--mid) var(--ease) forwards; }
+
+  .map-placeholder{height:200px;border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(8,12,24,0.06);background:#e9f2ff}
+  .map-placeholder iframe{width:100%;height:100%;border:0}
+
   .nearby-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
   .mini{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;background:rgba(255,255,255,0.6);transition:transform 160ms var(--ease)}
   .mini:hover{transform:translateX(6px)}
+
+  /* hero visual */
+  .hero-visual{width:320px;height:200px;border-radius:12px;overflow:hidden;box-shadow:0 18px 46px rgba(10,16,30,0.06);transform:translateZ(0);will-change:transform}
+  .hero-visual img{width:100%;height:100%;object-fit:cover;display:block;transform:translateY(0) scale(1.03);transition:transform 900ms var(--ease);}
+
+  /* small utilities */
+  .muted{ color:var(--muted); font-size:13px }
 
   /* modal */
   .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:60}
   .modal{width:min(520px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
 
   /* toast */
-  .__toast{transition:opacity 240ms var(--ease)}
+  .__toast{transition:opacity 240ms var(--ease); opacity:0}
 
-  /* responsive tweaks */
+  /* responsive */
   @media (max-width:720px){
     .logo{display:none}
     .addr{max-width:60%}
+    .hero { flex-direction:column }
+    .hero-visual{width:100%;height:160px}
+    .main{grid-template-columns:1fr}
+    .listing-card{flex-direction:row}
+    .thumb{width:120px;height:86px}
   }
+
 </style>
 </head>
 <body>
@@ -114,11 +212,13 @@
         <a href="register.html" class="link-muted" title="Register">Register</a>
         <a href="login.html" class="btn btn-ghost" title="Sign in">Log in</a>
         <button id="guestBtn" class="btn btn-primary guest-pill" title="Continue as guest">Continue as Guest</button>
+        <a id="favLink" href="favorites.html" class="btn btn-ghost" title="Favourites">Favourites</a>
       </nav>
     </header>
 
-    <main class="main" role="main">
-      <section>
+    <!-- hero (search + visual) -->
+    <section class="hero" style="margin-top:8px">
+      <div class="hero-left">
         <div class="search-panel" role="search" aria-label="Search rentals">
           <div style="display:flex;gap:10px;align-items:center">
             <input id="q" type="text" placeholder="Search by area, landmark, or keyword" aria-label="Search" />
@@ -140,6 +240,16 @@
           <div class="small-hint">System will prioritize nearby listings if you allow location access.</div>
         </div>
 
+        <!-- listings live below in main area (kept here for semantic grouping) -->
+      </div>
+
+      <div class="hero-visual" aria-hidden="true" id="heroVisual">
+        <img id="heroImg" src="real-estate-9539531_1920.jpg" alt="Apartment interior" />
+      </div>
+    </section>
+
+    <main class="main" role="main">
+      <section>
         <div id="listings" class="listings" aria-live="polite" style="margin-top:12px">
           <!-- JS injects listing cards -->
         </div>
@@ -151,7 +261,18 @@
           <div style="font-size:13px;color:var(--muted)">Auto-prioritize</div>
         </div>
 
-        <div class="map-placeholder" id="mapArea">No map — only textual addresses</div>
+        <div class="map-placeholder" style="margin-top:12px">
+          <iframe
+            id="mapFrame"
+            src="https://maps.google.com/maps?width=100%&height=300&hl=en&q=Universiti%20Kebangsaan%20Malaysia%20Bangi%20Malaysia&ie=UTF8&t=&z=15&iwloc=B&output=embed"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade">
+          </iframe>
+        </div>
+
+        <div id="mapArea" style="margin-top:8px;font-size:12px;color:var(--muted)">
+          Address unavailable — showing area names only
+        </div>
 
         <div style="margin-top:12px;font-weight:700">Closest listings</div>
         <div id="nearbyList" class="nearby-list" aria-live="polite"></div>
@@ -176,7 +297,7 @@
   </div>
 
 <script>
-/* ---------- Mock properties ---------- */
+/* ---------- Mock properties (unchanged) ---------- */
 const properties = [
   { id:1, title:"Studio near UKM - 5 min", lat:2.9245, lon:101.7750, price:450, beds:1, area:"Bangi", img:"https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=60", rating:4.6 },
   { id:2, title:"Cozy 1BR, close to bus stop", lat:2.9305, lon:101.7802, price:600, beds:1, area:"Taman UKM", img:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=60", rating:4.4 },
@@ -198,12 +319,11 @@ function haversineKm(lat1, lon1, lat2, lon2){
 }
 function sanitize(s){ return String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-/* ---------- State ---------- */
+/* ---------- State & DOM ---------- */
 let userLocation = null;
 let userAddress = null;
 let isGuest = false;
 
-/* ---------- DOM ---------- */
 const listingsEl = document.getElementById('listings');
 const nearbyListEl = document.getElementById('nearbyList');
 const locBtn = document.getElementById('locBtn');
@@ -214,8 +334,13 @@ const locationBar = document.getElementById('locationBar');
 const addrText = document.getElementById('addrText');
 const locChip = document.getElementById('locChip');
 const refreshAddr = document.getElementById('refreshAddr');
+const favLink = document.getElementById('favLink');
+const heroImg = document.getElementById('heroImg');
+const heroVisual = document.getElementById('heroVisual');
+const searchPanel = document.querySelector('.search-panel');
+const sidebar = document.querySelector('.sidebar');
 
-/* ---------- Rendering ---------- */
+/* ---------- Rendering with IntersectionObserver + stagger ---------- */
 function renderListings(sortedProperties){
   listingsEl.innerHTML = '';
   sortedProperties.forEach((p, idx)=>{
@@ -223,8 +348,7 @@ function renderListings(sortedProperties){
     const near = p.distance !== undefined && p.distance <= 1.2;
     const card = document.createElement('article');
     card.className = 'listing-card';
-    // stagger entrance
-    card.style.animationDelay = (idx * 60) + 'ms';
+    card.style.setProperty('--delay', (idx * 70) + 'ms');
     card.innerHTML = `
       <div class="thumb" style="background-image:url('${p.img}')" aria-hidden="true"></div>
       <div class="info">
@@ -238,18 +362,39 @@ function renderListings(sortedProperties){
             <div class="tag">Top pick</div>
           </div>
         </div>
-
         <div class="actions-row">
           <div class="price">RM ${p.price}</div>
           <div class="distance">${d}</div>
-          <button class="heart" data-id="${p.id}" title="Add to favourites" aria-label="Add to favourites">
-            ♡
-          </button>
-          <a class="btn btn-ghost" href="property.html?id=${p.id}" style="margin-left:8px">View</a>
+          <button class="heart" data-id="${p.id}" title="Add to favourites" aria-label="Add to favourites">♡</button>
+          <a class="btn btn-ghost view-link" data-id="${p.id}" href="property.html?id=${p.id}" style="margin-left:8px">View</a>
         </div>
       </div>
     `;
     listingsEl.appendChild(card);
+  });
+
+  // reveal with observer + stagger
+  const cards = document.querySelectorAll('.listing-card');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        const el = entry.target;
+        const delay = getComputedStyle(el).getPropertyValue('--delay') || '0ms';
+        el.style.animationDelay = delay.trim();
+        el.classList.add('in-view');
+        obs.unobserve(el);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  cards.forEach(c => obs.observe(c));
+
+  // View links persist context
+  document.querySelectorAll('.view-link').forEach(a=>{
+    a.addEventListener('click', ()=>{
+      if(userLocation) localStorage.setItem('ukm_last_loc', JSON.stringify(userLocation));
+      localStorage.setItem('ukm_is_guest', isGuest ? 'true' : 'false');
+    });
   });
 }
 
@@ -277,12 +422,13 @@ function sortProperties(baseList){
     arr.forEach(p => p.distance = haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon));
     arr.sort((a,b) => a.distance - b.distance || a.price - b.price);
   } else {
+    arr.forEach(p => p.distance = undefined);
     arr.sort((a,b) => a.price - b.price || b.rating - a.rating);
   }
   return arr;
 }
 
-/* ---------- Geolocation + Reverse geocoding (Nominatim) ---------- */
+/* ---------- Geolocation + Reverse geocode (same) ---------- */
 async function requestLocationAndAddress(){
   if(!navigator.geolocation){
     showToast('Geolocation not supported by browser.');
@@ -294,59 +440,55 @@ async function requestLocationAndAddress(){
       navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy:true, timeout:12000 });
     });
     userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-    // save optional
     try{ localStorage.setItem('ukm_last_loc', JSON.stringify(userLocation)); }catch(e){}
-    // reverse geocode using Nominatim (OpenStreetMap) — lightweight call
-    addrText.textContent = 'Resolving address…';
-    locationBar.style.display = 'flex';
+    const mapArea = document.getElementById('mapArea');
+    mapArea.textContent = 'Resolving address…';
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lon}&format=jsonv2`;
-    // include a referer-like header not possible from browser; respect rate limits for production
     const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if(!resp.ok) throw new Error('Reverse geocode failed');
     const data = await resp.json();
-    // data.display_name contains readable address; fallback to neighbourhood or town
     userAddress = data.display_name || (data.address && (data.address.neighbourhood || data.address.suburb || data.address.city || data.address.town)) || null;
     if(userAddress){
-      addrText.textContent = userAddress;
+      mapArea.textContent = userAddress;
       locChip.textContent = `📍 ${data.address && (data.address.city || data.address.town || data.address.village) ? data.address.city || data.address.town || data.address.village : 'Nearby'}`;
     } else {
-      addrText.textContent = 'Unable to resolve address';
+      mapArea.textContent = 'Unable to resolve address';
       locChip.textContent = '📍 Nearby';
     }
     locBtn.textContent = 'Use my location (on)';
+    locationBar.style.display = 'flex';
     updateView();
   }catch(err){
     console.warn('Location/address error', err);
     locBtn.textContent = 'Use my location';
-    addrText.textContent = 'Location unavailable or permission denied';
+    const mapArea = document.getElementById('mapArea');
+    mapArea.textContent = 'Location unavailable or permission denied';
     locationBar.style.display = 'flex';
     showToast('Location unavailable or permission denied. Showing default listings.');
     updateView();
   }
 }
 
-/* Refresh address handler (re-run reverse geocode) */
-refreshAddr.addEventListener('click', ()=>{
-  if(userLocation) requestLocationAndAddress();
-  else showToast('No known location. Click "Use my location" first.');
-});
-
-/* ---------- Guest and favourites ---------- */
+/* ---------- UI helpers (guest, favs, heart) ---------- */
 guestBtn.addEventListener('click', ()=>{
   isGuest = true;
   guestBtn.textContent = 'Browsing as Guest';
   guestBtn.disabled = true;
+  try{ localStorage.setItem('ukm_is_guest', 'true'); }catch(e){}
   showToast('You are browsing as a guest. Login to unlock favourites & bookings.');
+});
+
+favLink.addEventListener('click', (ev)=>{
+  try{ localStorage.setItem('ukm_is_guest', isGuest ? 'true' : 'false'); }catch(e){}
 });
 
 document.addEventListener('click', (e)=>{
   const t = e.target.closest('.heart');
   if(t){
-    if(isGuest){
+    if(isGuest || localStorage.getItem('ukm_is_guest') === 'true'){
       openModal('Sign in required', 'You must sign in to add to your favourites. Would you like to sign in now?');
       return;
     }
-    // toggle favourite with animated feedback
     if(t.classList.contains('fav')){
       t.classList.remove('fav');
       t.textContent = '♡';
@@ -354,14 +496,13 @@ document.addEventListener('click', (e)=>{
     } else {
       t.classList.add('fav');
       t.textContent = '♥';
-      // heart pop animation
       t.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 340, easing: 'cubic-bezier(.2,.9,.2,1)' });
       showToast('Added to favourites');
     }
   }
 });
 
-/* Modal helpers */
+/* Modal */
 function openModal(title, text){
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalText').textContent = text;
@@ -400,25 +541,9 @@ function showToast(text){
 }
 
 /* ---------- Search/filter handlers ---------- */
-document.getElementById('q').addEventListener('input', (e)=>{
-  filterAndRender();
-});
-document.getElementById('filter').addEventListener('change', ()=>{
-  filterAndRender();
-});
+document.getElementById('q').addEventListener('input', ()=>{ filterAndRender(); });
+document.getElementById('filter').addEventListener('change', ()=>{ filterAndRender(); });
 
-/* ---------- Core update view ---------- */
-function updateView(){
-  const sorted = sortProperties(properties);
-  renderListings(sorted);
-  renderNearby(sorted);
-  // reflect address in page if available
-  const mapArea = document.getElementById('mapArea');
-  if(userAddress) mapArea.textContent = `Your current address: ${userAddress}`;
-  else mapArea.textContent = 'Address unavailable — showing area names only';
-}
-
-/* ---------- Filtering + sorting ---------- */
 function filterAndRender(){
   const q = document.getElementById('q').value.trim().toLowerCase();
   const f = document.getElementById('filter').value;
@@ -431,28 +556,15 @@ function filterAndRender(){
   renderNearby(sorted);
 }
 
-/* ---------- Sorting (uses userLocation if set) ---------- */
-function sortProperties(baseList){
-  const arr = baseList.map(p => ({...p}));
-  if(userLocation){
-    arr.forEach(p => p.distance = haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon));
-    arr.sort((a,b) => a.distance - b.distance || a.price - b.price);
-  } else {
-    arr.forEach(p => p.distance = undefined);
-    arr.sort((a,b) => a.price - b.price || b.rating - a.rating);
-  }
-  return arr;
-}
-
-/* ---------- Init: try cached location, then render ---------- */
+/* ---------- Init: try cached location, read guest flag, then render + set up observers ---------- */
 (function init(){
   const stored = localStorage.getItem('ukm_last_loc');
-  if(stored){
-    try{ userLocation = JSON.parse(stored); }catch(e){}
-  }
-  // If have cached location, try reverse geocoding to update address
+  if(stored){ try{ userLocation = JSON.parse(stored); }catch(e){} }
+  try{
+    isGuest = (localStorage.getItem('ukm_is_guest') === 'true');
+    if(isGuest){ guestBtn.textContent = 'Browsing as Guest'; guestBtn.disabled = true; }
+  }catch(e){}
   if(userLocation){
-    // lightweight reverse geocode
     (async ()=> {
       try{
         const url = `https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lon}&format=jsonv2`;
@@ -461,8 +573,9 @@ function sortProperties(baseList){
           const data = await resp.json();
           userAddress = data.display_name || null;
           if(userAddress){
+            const mapArea = document.getElementById('mapArea');
             locationBar.style.display = 'flex';
-            addrText.textContent = userAddress;
+            mapArea.textContent = userAddress;
             locChip.textContent = `📍 ${data.address && (data.address.city || data.address.town || data.address.village) ? data.address.city || data.address.town || data.address.village : 'Nearby'}`;
           }
         }
@@ -472,18 +585,60 @@ function sortProperties(baseList){
   } else {
     updateView();
   }
+
+  // observe search panel and sidebar for reveal
+  const revealObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(en => {
+      if(en.isIntersecting){
+        en.target.classList.add('in-view');
+        revealObserver.unobserve(en.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  if(searchPanel) revealObserver.observe(searchPanel);
+  if(sidebar) revealObserver.observe(sidebar);
+
+  // subtle hero parallax: mousemove + scroll
+  const maxOffset = 18;
+  heroVisual.addEventListener('mousemove', (e)=>{
+    const r = heroVisual.getBoundingClientRect();
+    const cx = r.left + r.width/2;
+    const cy = r.top + r.height/2;
+    const dx = (e.clientX - cx) / r.width;
+    const dy = (e.clientY - cy) / r.height;
+    // gentle transform
+    heroImg.style.transform = `translate3d(${dx * 8}px, ${dy * 10}px, 0) scale(1.03)`;
+  });
+  heroVisual.addEventListener('mouseleave', ()=> {
+    heroImg.style.transform = 'translate3d(0,0,0) scale(1.03)';
+  });
+  window.addEventListener('scroll', ()=> {
+    const rect = heroVisual.getBoundingClientRect();
+    const mid = window.innerHeight / 2;
+    const offset = Math.max(-maxOffset, Math.min(maxOffset, (rect.top - mid) / 30));
+    heroImg.style.transform = `translateY(${offset}px) scale(1.03)`;
+  }, { passive: true });
+
 })();
 
+/* ---------- Core view update ---------- */
+function updateView(){
+  const sorted = sortProperties(properties);
+  renderListings(sorted);
+  renderNearby(sorted);
+  const mapArea = document.getElementById('mapArea');
+  if(userAddress) mapArea.textContent = `Your current address: ${userAddress}`;
+  else mapArea.textContent = 'Address unavailable — showing area names only';
+}
+
 /* ---------- Bind location button ---------- */
-locBtn.addEventListener('click', () => {
-  requestLocationAndAddress();
-});
+locBtn.addEventListener('click', () => { requestLocationAndAddress(); });
 
 /* ---------- Permissions: attempt to pre-fill if granted ---------- */
 if(navigator.permissions){
   navigator.permissions.query({name:'geolocation'}).then(per => {
     if(per.state === 'granted'){
-      // Attempt to get and display once
       navigator.geolocation.getCurrentPosition(pos => {
         userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
         localStorage.setItem('ukm_last_loc', JSON.stringify(userLocation));

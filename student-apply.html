@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Apply — UKM Students off School Rented System</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card-bg: rgba(255,255,255,0.94);
+    --accent:#1e88ff; --accent-2:#0b3d91;
+    --ink:#071028; --muted:#6a7480;
+    --radius:14px; --shadow:0 18px 40px rgba(7,12,25,0.12);
+    --ease:cubic-bezier(.2,.9,.2,1);
+    --danger:#ff6257;
+    --success:#17c964;
+  }
+
+  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial;background:linear-gradient(180deg,#eef3fb,#fff);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{min-height:100vh;padding:20px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}
+  @keyframes pageIn{to{opacity:1;transform:none}}
+
+  header.appbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-radius:calc(var(--radius)+6px);background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.6));box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:700}
+  nav.actions{display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-size:14px}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff}
+  .btn-ghost{background:transparent;border:1px solid rgba(10,16,28,0.06);color:var(--accent-2)}
+  .tiny{font-size:13px;color:var(--muted)}
+
+  main.layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:14px}
+  @media(max-width:1000px){ main.layout{grid-template-columns:1fr} }
+
+  .card{background:var(--card-bg);border-radius:12px;padding:16px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
+  h1{margin:0 0 6px 0}
+
+  form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .full{grid-column:1/-1}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type="text"],input[type="email"],input[type="tel"],input[type="number"],select,textarea,input[type="datetime-local"]{
+    width:100%;padding:10px;border-radius:10px;border:1px solid rgba(10,16,28,0.06);background:white;box-sizing:border-box;font-size:14px
+  }
+  textarea{min-height:120px;resize:vertical}
+
+  .field{background:linear-gradient(180deg,rgba(255,255,255,0.98),#fff);padding:10px;border-radius:10px}
+  .muted{color:var(--muted);font-size:13px}
+
+  /* uploads */
+  .uploads{display:flex;gap:12px;flex-wrap:wrap}
+  .u-preview{width:120px;height:88px;border-radius:8px;background:#f6f8fb;border:1px dashed rgba(10,16,28,0.06);display:grid;place-items:center;font-size:12px;color:var(--muted);position:relative;overflow:hidden}
+  .u-preview img{width:100%;height:100%;object-fit:cover}
+  .u-remove{position:absolute;right:6px;top:6px;background:rgba(255,255,255,0.9);border-radius:8px;padding:4px;font-size:12px;cursor:pointer}
+
+  .file-list{display:flex;flex-direction:column;gap:6px}
+  .file-item{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:#fff;border:1px solid rgba(10,16,28,0.04);font-size:13px}
+
+  .note{font-size:13px;color:var(--muted)}
+  .error{color:var(--danger);font-size:13px}
+  .success{color:var(--success);font-size:13px}
+
+  .actions{display:flex;gap:10px;align-items:center;margin-top:8px}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:80}
+  .modal{width:min(520px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
+
+  .__toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:90;padding:8px 14px;border-radius:10px;color:#fff;box-shadow:0 10px 30px rgba(14,54,120,0.12)}
+  .fade-in{animation:fadeIn 360ms var(--ease) forwards}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <header class="appbar" role="banner">
+      <div class="brand">
+        <div class="logo">UKM</div>
+        <div>
+          <div style="font-weight:700">UKM Students off School Rented System</div>
+          <div class="tiny">Student Application Submission</div>
+        </div>
+      </div>
+
+      <nav class="actions">
+        <a href="index.html" class="btn btn-ghost">Home</a>
+        <a href="property.html" class="btn btn-ghost">Properties</a>
+        <a href="login.html" class="btn btn-ghost">Log in</a>
+        <a href="register.html" class="btn btn-ghost">Register</a>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <!-- left: form -->
+      <section class="card fade-in" aria-labelledby="applyTitle">
+        <h1 id="applyTitle">Apply for this property</h1>
+        <p class="muted">Please complete the form below to apply. You may upload supporting documents (student ID, transcripts, guarantor information).</p>
+
+        <form id="applyForm" class="fade-in" novalidate>
+          <div class="field full">
+            <label for="propRef">Property reference (optional)</label>
+            <input id="propRef" name="propRef" type="text" placeholder="e.g. property id or title (property.html?id=...)" />
+          </div>
+
+          <div class="field">
+            <label for="name">Full name *</label>
+            <input id="name" name="name" type="text" required placeholder="Your full name" />
+          </div>
+
+          <div class="field">
+            <label for="studentId">Student ID *</label>
+            <input id="studentId" name="studentId" type="text" required placeholder="e.g. A199958" />
+          </div>
+
+          <div class="field">
+            <label for="email">Email *</label>
+            <input id="email" name="email" type="email" required placeholder="you@example.edu" />
+          </div>
+
+          <div class="field">
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" type="tel" placeholder="+60 12 345 6789" />
+          </div>
+
+          <div class="field full">
+            <label for="message">Message to host *</label>
+            <textarea id="message" name="message" required placeholder="Tell the host about your intended stay, roommates, guarantor, etc."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="moveIn">Desired move-in date</label>
+            <input id="moveIn" name="moveIn" type="date" />
+          </div>
+
+          <div class="field">
+            <label for="duration">Duration (months)</label>
+            <input id="duration" name="duration" type="number" min="1" max="60" />
+          </div>
+
+          <div class="field full">
+            <label>Upload supporting documents (images or PDF, max 3MB each)</label>
+            <div class="uploads" id="uploadsArea">
+              <div class="u-preview" id="addFileBtn" title="Add files" style="cursor:pointer">＋ Add</div>
+            </div>
+            <div class="note" style="margin-top:8px">Accepted types: images (JPG/PNG) and PDF. Max 3 MB per file.</div>
+            <div id="uploadError" class="error" style="display:none;margin-top:6px"></div>
+          </div>
+
+          <div class="field full">
+            <label>Current address (optional)</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="address" type="text" placeholder="Detected or manual address" />
+              <button type="button" id="locBtn" class="btn btn-ghost">Use my location</button>
+            </div>
+            <div class="muted" id="addrHint" style="margin-top:6px">Allowing location will reverse-resolve a readable address (text only).</div>
+          </div>
+
+          <div class="field full">
+            <label>
+              <input id="agree" type="checkbox" />
+              <span style="margin-left:8px">I agree to the <a href="terms.html" target="_blank">Terms</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
+            </label>
+            <div id="agreeError" class="error" style="display:none;margin-top:6px"></div>
+          </div>
+
+          <div class="full" style="display:flex;gap:10px;align-items:center">
+            <button id="submitBtn" type="submit" class="btn btn-primary">Submit application</button>
+            <button id="saveDraft" type="button" class="btn btn-ghost">Save draft</button>
+            <div id="formMsg" class="muted" style="margin-left:8px"></div>
+          </div>
+        </form>
+      </section>
+
+      <!-- right: sidebar -->
+      <aside class="card fade-in">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Application info</div>
+          <div class="tiny">What happens next</div>
+        </div>
+
+        <div style="margin-top:10px">
+          <ul style="color:#24303b">
+            <li>Host will review your application and files.</li>
+            <li>Accepted applicants will be contacted for viewing and contract steps.</li>
+            <li>Do not upload sensitive documents unless requested by host.</li>
+          </ul>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-weight:700">Your current address</div>
+          <div id="addrText" class="tiny" style="margin-top:8px;color:var(--muted)">Detecting address…</div>
+          <div style="margin-top:8px">
+            <button id="refreshLoc" class="btn btn-ghost">Refresh location</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-weight:700">Tips</div>
+          <div class="muted" style="margin-top:8px">Use clear photos for IDs and transcripts. Include expected move-in date and any guarantor details in the message.</div>
+        </div>
+      </aside>
+    </main>
+
+    <footer style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;margin-top:12px">© 2025 UKM Students off School Rented System</footer>
+  </div>
+
+  <!-- sign-in modal for guest / not-logged -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document">
+      <h3>Sign in required</h3>
+      <p>You must sign in to submit an application. Please sign in or register.</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <a href="login.html" class="btn btn-ghost">Sign in</a>
+        <a href="register.html" class="btn btn-primary">Register</a>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ============================
+   Demo auth state helpers
+   - In production, use server-side auth / JWT
+   ============================ */
+function isLoggedIn(){ try{ return !!JSON.parse(localStorage.getItem('ukm_logged_in')); }catch(e){ return false; } }
+function isGuest(){ try{ return !!JSON.parse(localStorage.getItem('ukm_is_guest')); }catch(e){ return false; } }
+
+/* ============================
+   Elements
+   ============================ */
+const addFileBtn = document.getElementById('addFileBtn');
+const uploadsArea = document.getElementById('uploadsArea');
+const uploadError = document.getElementById('uploadError');
+const submitBtn = document.getElementById('submitBtn');
+const applyForm = document.getElementById('applyForm');
+const formMsg = document.getElementById('formMsg');
+const modalBackdrop = document.getElementById('modalBackdrop');
+const locBtn = document.getElementById('locBtn');
+const refreshLoc = document.getElementById('refreshLoc');
+const addrText = document.getElementById('addrText');
+const addressInput = document.getElementById('address');
+const agreeEl = document.getElementById('agree');
+const agreeError = document.getElementById('agreeError');
+
+let uploadedFiles = []; // { file, url, name, type }
+
+/* ============================
+   Helpers: toast, sanitize
+   ============================ */
+let toastTimer = null;
+function showToast(text, bg='linear-gradient(90deg,var(--accent),var(--accent-2))'){
+  let el = document.querySelector('.__toast');
+  if(!el){ el = document.createElement('div'); el.className='__toast'; document.body.appendChild(el); }
+  el.style.background = bg;
+  el.textContent = text;
+  el.style.opacity = '1';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.style.opacity = '0', 3000);
+}
+function s(t){ return String(t).replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* ============================
+   File upload handling
+   ============================ */
+function renderUploads(){
+  // remove previews (except add button)
+  uploadsArea.querySelectorAll('.u-preview').forEach(n => { if(n !== addFileBtn) n.remove(); });
+  uploadedFiles.forEach((f, idx) => {
+    const div = document.createElement('div');
+    div.className = 'u-preview';
+    if(f.type && f.type.startsWith('image')){
+      div.innerHTML = `<img src="${f.url}" alt="${s(f.name)}"><div class="u-remove" data-idx="${idx}">✕</div>`;
+    } else {
+      div.innerHTML = `<div style="padding:8px;text-align:center"><strong>${s(f.name)}</strong><div class="muted" style="font-size:12px">${(f.file.size/1024/1024).toFixed(2)} MB</div></div><div class="u-remove" data-idx="${idx}">✕</div>`;
+    }
+    uploadsArea.insertBefore(div, addFileBtn);
+    div.querySelector('.u-remove').addEventListener('click', (e)=>{
+      const i = Number(e.currentTarget.getAttribute('data-idx'));
+      uploadedFiles.splice(i,1);
+      renderUploads();
+    });
+  });
+  // hide error if any files present
+  if(uploadedFiles.length) uploadError.style.display = 'none';
+}
+
+function addFile(file){
+  if(!file) return;
+  if(!(file.type.startsWith('image') || file.type === 'application/pdf')) {
+    uploadError.style.display = 'block'; uploadError.textContent = 'Invalid file type. Only images and PDF allowed.'; return;
+  }
+  if(file.size > 3*1024*1024){ uploadError.style.display = 'block'; uploadError.textContent = 'File too large. Max 3 MB.'; return; }
+  const reader = new FileReader();
+  reader.onload = ()=> {
+    uploadedFiles.push({ file, url: reader.result, name: file.name, type: file.type });
+    renderUploads();
+  };
+  if(file.type.startsWith('image')) reader.readAsDataURL(file);
+  else {
+    // for pdf, don't read full content — just create objectURL for download preview
+    const url = URL.createObjectURL(file);
+    uploadedFiles.push({ file, url, name: file.name, type: file.type });
+    renderUploads();
+  }
+}
+
+/* click add button -> file picker */
+addFileBtn.addEventListener('click', ()=> {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*,application/pdf'; input.multiple = true;
+  input.onchange = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(f => addFile(f));
+  };
+  input.click();
+});
+
+/* drag & drop */
+uploadsArea.addEventListener('dragover', (e)=> { e.preventDefault(); uploadsArea.style.opacity = .9; });
+uploadsArea.addEventListener('dragleave', ()=> { uploadsArea.style.opacity = 1; });
+uploadsArea.addEventListener('drop', (e)=> {
+  e.preventDefault(); uploadsArea.style.opacity = 1;
+  const files = Array.from(e.dataTransfer.files || []);
+  files.forEach(f => addFile(f));
+});
+
+/* ============================
+   Geolocation + reverse geocode
+   ============================ */
+async function requestLocationAndAddress(){
+  if(!navigator.geolocation){ addrText.textContent = 'Geolocation not supported'; return; }
+  locBtn.textContent = 'Locating…';
+  try{
+    const pos = await new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:12000}));
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    // Nominatim reverse geocode (demo). For production use server proxy or paid provider.
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2`);
+    if(!resp.ok) throw new Error('geocode failed');
+    const data = await resp.json();
+    const pretty = data.display_name || (data.address && (data.address.neighbourhood || data.address.suburb || data.address.city)) || '';
+    addrText.textContent = pretty || 'Nearby area';
+    addressInput.value = pretty || '';
+    locBtn.textContent = 'Use my location (on)';
+  }catch(err){
+    console.warn('loc error', err);
+    addrText.textContent = 'Location unavailable or permission denied';
+    locBtn.textContent = 'Use my location';
+  }
+}
+locBtn.addEventListener('click', requestLocationAndAddress);
+refreshLoc.addEventListener('click', requestLocationAndAddress);
+
+/* try to prefetch cached location */
+(function tryCached(){
+  try{
+    const last = JSON.parse(localStorage.getItem('ukm_last_loc') || 'null');
+    if(last && last.address){ addrText.textContent = last.address; addressInput.value = last.address; }
+  }catch(e){}
+})();
+
+/* ============================
+   Form submit handling
+   ============================ */
+applyForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+
+  // guest / login check
+  if(!isLoggedIn() || isGuest()){
+    modalBackdrop.style.display = 'flex';
+    modalBackdrop.setAttribute('aria-hidden','false');
+    return;
+  }
+
+  // simple validation
+  const name = document.getElementById('name').value.trim();
+  const studentId = document.getElementById('studentId').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const message = document.getElementById('message').value.trim();
+  if(!name || !studentId || !email || !message){
+    formMsg.textContent = 'Please complete required fields (name, student ID, email, message).';
+    formMsg.className = 'error'; setTimeout(()=> { formMsg.textContent=''; formMsg.className='muted'; }, 4200);
+    return;
+  }
+  if(!agreeEl.checked){
+    agreeError.style.display = 'block'; agreeError.textContent = 'You must agree to the Terms & Privacy.';
+    return;
+  } else { agreeError.style.display = 'none'; }
+
+  // package data (FormData)
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('studentId', studentId);
+  fd.append('email', email);
+  fd.append('phone', document.getElementById('phone').value.trim());
+  fd.append('message', message);
+  fd.append('moveIn', document.getElementById('moveIn').value || '');
+  fd.append('duration', document.getElementById('duration').value || '');
+  fd.append('address', document.getElementById('address').value || '');
+  fd.append('propertyRef', document.getElementById('propRef').value || '');
+  uploadedFiles.forEach((f, idx) => fd.append('files[]', f.file, f.name));
+
+  // UI: disable submit, show loading
+  submitBtn.disabled = true;
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Submitting…';
+
+  try{
+    // DEMO: simulate a network call
+    await new Promise(res => setTimeout(res, 1000));
+
+    // In production, replace with:
+    // const resp = await fetch('/api/applications', { method:'POST', body: fd, credentials:'include' });
+    // handle resp.status / resp.json()
+
+    showToast('Application submitted — host will be notified.');
+    submitBtn.textContent = 'Submitted';
+    formMsg.textContent = 'Your application has been submitted (demo).';
+    formMsg.className = 'success';
+    // optionally clear form or save draft
+    setTimeout(()=> {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+      // redirect or clear
+      // window.location.href = 'applications.html';
+    }, 1000);
+  }catch(err){
+    console.error(err);
+    showToast('Submission failed', 'linear-gradient(90deg,var(--danger),#ff8b8b)');
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+    formMsg.textContent = 'Submission failed. Try again later.';
+    formMsg.className = 'error';
+  }
+});
+
+/* Save draft locally */
+document.getElementById('saveDraft').addEventListener('click', ()=>{
+  const draft = {
+    propRef: document.getElementById('propRef').value,
+    name: document.getElementById('name').value,
+    studentId: document.getElementById('studentId').value,
+    email: document.getElementById('email').value,
+    phone: document.getElementById('phone').value,
+    message: document.getElementById('message').value,
+    moveIn: document.getElementById('moveIn').value,
+    duration: document.getElementById('duration').value,
+    address: document.getElementById('address').value,
+    files: uploadedFiles.map(f => ({name:f.name, type:f.type}))
+  };
+  localStorage.setItem('ukm_application_draft', JSON.stringify(draft));
+  showToast('Draft saved locally');
+});
+
+/* modal close on click */
+modalBackdrop.addEventListener('click', (e)=>{ if(e.target === modalBackdrop){ modalBackdrop.style.display = 'none'; modalBackdrop.setAttribute('aria-hidden','true'); } });
+
+/* optional: prefill from draft */
+(function tryLoadDraft(){
+  try{
+    const d = JSON.parse(localStorage.getItem('ukm_application_draft') || 'null');
+    if(d){
+      if(d.propRef) document.getElementById('propRef').value = d.propRef;
+      if(d.name) document.getElementById('name').value = d.name;
+      if(d.studentId) document.getElementById('studentId').value = d.studentId;
+      if(d.email) document.getElementById('email').value = d.email;
+      if(d.phone) document.getElementById('phone').value = d.phone;
+      if(d.message) document.getElementById('message').value = d.message;
+      if(d.moveIn) document.getElementById('moveIn').value = d.moveIn;
+      if(d.duration) document.getElementById('duration').value = d.duration;
+      if(d.address) document.getElementById('address').value = d.address;
+    }
+  }catch(e){}
+})();
+
+/* try to auto-detect address once (non-blocking) */
+if(navigator.permissions){
+  navigator.permissions.query({name:'geolocation'}).then(res => {
+    if(res.state === 'granted') requestLocationAndAddress();
+  }).catch(()=>{});
+}
+</script>
+</body>
+</html>

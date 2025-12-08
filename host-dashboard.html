@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Host Dashboard — UKM Students off School Rented System</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card-bg: rgba(255,255,255,0.9);
+    --accent: #1e88ff;
+    --accent-2: #0b3d91;
+    --ink: #071028;
+    --muted: #6a7480;
+    --radius:14px;
+    --shadow-lg: 0 18px 40px rgba(7,12,25,0.12);
+    --ease: cubic-bezier(.2,.9,.2,1);
+    --success: #17c964;
+    --danger: #ff6257;
+  }
+
+  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial;color:var(--ink);background:linear-gradient(180deg,#eef3fb,#fff);-webkit-font-smoothing:antialiased}
+  .page{min-height:100vh;display:flex;flex-direction:column;gap:18px;padding:18px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}
+  @keyframes pageIn { to { opacity:1; transform:none } }
+
+  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,0.75), rgba(255,255,255,0.6));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:calc(var(--radius)+6px);padding:12px 16px;box-shadow:var(--shadow-lg)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:44px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;font-weight:700;box-shadow:0 8px 22px rgba(14,54,120,0.12)}
+  .title{font-weight:700;font-size:15px}
+  .subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+  nav.actions{display:flex;gap:8px;align-items:center}
+  nav.actions a, .btn {font-size:14px;padding:8px 12px;border-radius:10px;border:0;text-decoration:none;cursor:pointer;transition:transform 160ms var(--ease), box-shadow 160ms var(--ease)}
+  .btn:hover{transform:translateY(-2px)}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;box-shadow:0 10px 28px rgba(14,54,120,0.12)}
+  .btn-ghost{background:transparent;border:1px solid rgba(12,20,40,0.06);color:var(--accent-2)}
+  .guest-pill{background:linear-gradient(90deg, rgba(11,61,145,0.08), rgba(30,136,255,0.06));color:var(--accent-2);font-weight:600}
+
+  .dashboard{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+  @media(max-width:1000px){ .dashboard{grid-template-columns:1fr} }
+
+  /* summary cards */
+  .cards{display:flex;gap:12px;flex-wrap:wrap}
+  .stat-card{flex:1 1 180px;background:linear-gradient(180deg,rgba(255,255,255,0.95),#fff);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.06);display:flex;flex-direction:column;gap:8px;min-width:160px}
+  .stat-card .num{font-weight:800;font-size:20px}
+  .stat-card .label{color:var(--muted);font-size:13px}
+
+  /* main panels */
+  .panel{background:var(--card-bg);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.06)}
+  .panel h3{margin:0 0 10px 0}
+
+  /* listings table/cards */
+  .listings{display:flex;flex-direction:column;gap:12px}
+  .listing-card{display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid rgba(10,16,28,0.02);box-shadow:0 6px 20px rgba(8,12,24,0.04);transition:transform 260ms var(--ease),box-shadow 260ms var(--ease);opacity:0;transform:translateY(8px)}
+  .listing-card.show{opacity:1;transform:none}
+  .thumb{width:120px;height:80px;border-radius:8px;background-size:cover;background-position:center;flex-shrink:0}
+  .l-info{flex:1;display:flex;flex-direction:column}
+  .l-title{font-weight:800}
+  .l-meta{color:var(--muted);font-size:13px}
+  .l-stats{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .badge{padding:6px 10px;border-radius:999px;font-weight:700;font-size:12px;background:rgba(11,61,145,0.06);color:var(--accent-2)}
+  .badge.published{background:linear-gradient(90deg, rgba(30,136,255,0.08), rgba(30,136,255,0.04));color:var(--accent-2)}
+  .actions{display:flex;gap:8px;align-items:center}
+
+  .tiny{font-size:13px;color:var(--muted)}
+
+  /* application list */
+  .apps{display:flex;flex-direction:column;gap:8px}
+  .app-card{display:flex;justify-content:space-between;gap:8px;padding:8px;border-radius:8px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid rgba(10,16,28,0.02)}
+  .app-card .left{display:flex;gap:8px;align-items:center}
+  .avatar-sm{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:700}
+
+  /* messages */
+  .msg-list{display:flex;flex-direction:column;gap:8px}
+  .msg-item{padding:10px;border-radius:8px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid rgba(10,16,28,0.02)}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:80}
+  .modal{width:min(760px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
+
+  /* toast */
+  .__toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:90;padding:8px 14px;border-radius:10px;color:#fff;box-shadow:0 10px 30px rgba(14,54,120,0.12)}
+
+  /* subtle hover */
+  .listing-card:hover{transform:translateY(-6px);box-shadow:0 20px 48px rgba(8,12,24,0.08)}
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <header class="appbar" role="banner">
+      <div class="brand">
+        <div class="logo">UKM</div>
+        <div>
+          <div class="title">UKM Students off School Rented System</div>
+          <div class="subtitle">Host Dashboard</div>
+        </div>
+      </div>
+
+      <nav class="actions" role="navigation">
+        <a href="index.html" class="btn btn-ghost">Home</a>
+        <a href="create-listing.html" class="btn btn-primary">Create Listing</a>
+        <a href="favorites.html" class="btn btn-ghost">Favourites</a>
+        <a href="login.html" class="btn btn-ghost">Log in</a>
+      </nav>
+    </header>
+
+    <main class="dashboard" role="main">
+      <section style="display:flex;flex-direction:column;gap:12px">
+        <!-- summary -->
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <h3 style="margin:0">Overview</h3>
+              <div class="tiny" style="margin-top:6px">Quick metrics for your host account</div>
+            </div>
+            <div class="tiny" id="lastSync">Last sync: just now</div>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="cards" id="statCards" aria-live="polite">
+            <div class="stat-card" aria-hidden="false">
+              <div class="num" id="statListings">0</div>
+              <div class="label">Active listings</div>
+            </div>
+            <div class="stat-card">
+              <div class="num" id="statDrafts">0</div>
+              <div class="label">Drafts</div>
+            </div>
+            <div class="stat-card">
+              <div class="num" id="statApps">0</div>
+              <div class="label">New applications</div>
+            </div>
+            <div class="stat-card">
+              <div class="num" id="statMsgs">0</div>
+              <div class="label">Unread messages</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- listings -->
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0">My listings</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="searchList" type="search" placeholder="Search title or area" style="padding:8px;border-radius:10px;border:1px solid rgba(10,16,28,0.06)" />
+              <a href="create-listing.html" class="btn btn-primary">New listing</a>
+            </div>
+          </div>
+
+          <div style="margin-top:12px" id="listingsWrap">
+            <div class="listings" id="listings"></div>
+          </div>
+        </div>
+
+        <!-- applications -->
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0">Applications</h3>
+            <div class="tiny">Manage requests from potential tenants</div>
+          </div>
+          <div style="margin-top:12px" id="appsWrap">
+            <div class="apps" id="applications"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- right sidebar -->
+      <aside>
+        <div class="panel" style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">Account</div>
+            <div style="font-size:13px;color:var(--muted)">Host tools</div>
+          </div>
+          <div style="margin-top:10px">
+            <div style="display:flex;gap:8px">
+              <a href="create-listing.html" class="btn btn-ghost">Create</a>
+              <a href="favorites.html" class="btn btn-ghost">Favourites</a>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="font-weight:700">Your current address</div>
+            <div id="addrText" class="tiny" style="margin-top:8px;color:var(--muted)">Detecting address…</div>
+            <div style="margin-top:8px">
+              <button id="locBtn" class="btn btn-ghost">Refresh location</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">Messages</div>
+            <div class="tiny">Recent</div>
+          </div>
+          <div style="margin-top:10px" id="messages">
+            <div class="msg-list" id="msgList"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">Help & resources</div>
+            <div class="tiny">Docs</div>
+          </div>
+          <ul style="margin-top:10px;color:#24303b">
+            <li><a href="terms.html">Terms & conditions</a></li>
+            <li><a href="privacy.html">Privacy policy</a></li>
+            <li><a href="help.html">Host guide (placeholder)</a></li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+
+    <footer style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;margin-top:8px">© 2025 UKM Students off School Rented System</footer>
+  </div>
+
+  <!-- modal: confirm delete, view application -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" id="modal" role="document">
+      <div id="modalContent">
+        <!-- dynamic -->
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button id="modalCancel" class="btn btn-ghost">Close</button>
+        <button id="modalPrimary" class="btn btn-primary" style="display:none">Primary</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ============================
+   Mock data (replace with API)
+   ============================ */
+const properties = [
+  { id:101, title:"Studio near UKM - 5 min", area:"Bangi", price:450, beds:1, img:"https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=60", status:"published", views:124 },
+  { id:102, title:"Cozy 1BR, close to bus stop", area:"Taman UKM", price:600, beds:1, img:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=60", status:"draft", views:24 },
+  { id:103, title:"2BR apartment — quiet neighbourhood", area:"Seksyen 3", price:1200, beds:2, img:"https://images.unsplash.com/photo-1600585153762-2a4f0f7e5931?auto=format&fit=crop&w=1200&q=60", status:"paused", views:87 }
+];
+
+const applications = [
+  { id:5001, propertyId:101, applicant:"Zhang Peigen", studentId:"A199958", submitted:"2025-12-01", status:"pending", message:"I am interested. Can I schedule a viewing?" },
+  { id:5002, propertyId:103, applicant:"Liu Zetong", studentId:"A199538", submitted:"2025-12-03", status:"pending", message:"Looking for 2-month stay from Jan." }
+];
+
+const messages = [
+  { id:9001, from:"Siti Nur", preview:"Is the room still available?", time:"1h" },
+  { id:9002, from:"Support", preview:"Your listing review completed", time:"2d" }
+];
+
+/* ====================
+   DOM refs & helpers
+   ==================== */
+const statListings = document.getElementById('statListings');
+const statDrafts = document.getElementById('statDrafts');
+const statApps = document.getElementById('statApps');
+const statMsgs = document.getElementById('statMsgs');
+const listingsEl = document.getElementById('listings');
+const applicationsEl = document.getElementById('applications');
+const msgListEl = document.getElementById('msgList');
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalContent = document.getElementById('modalContent');
+const modalCancel = document.getElementById('modalCancel');
+const modalPrimary = document.getElementById('modalPrimary');
+const searchList = document.getElementById('searchList');
+const lastSync = document.getElementById('lastSync');
+const addrText = document.getElementById('addrText');
+const locBtn = document.getElementById('locBtn');
+
+/* toast */
+let toastTimer = null;
+function showToast(text, color='linear-gradient(90deg,var(--accent),var(--accent-2))'){
+  let el = document.querySelector('.__toast');
+  if(!el){
+    el = document.createElement('div');
+    el.className = '__toast';
+    document.body.appendChild(el);
+  }
+  el.style.background = color;
+  el.textContent = text;
+  el.style.opacity = '1';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.style.opacity = '0', 3000);
+}
+
+/* sanitize */
+function s(txt){ return String(txt).replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* ====================
+   Render functions
+   ==================== */
+function renderStats(){
+  const active = properties.filter(p => p.status === 'published').length;
+  const drafts = properties.filter(p => p.status === 'draft').length;
+  const apps = applications.filter(a => a.status === 'pending').length;
+  const unread = messages.length;
+  animateNumber(statListings, active);
+  animateNumber(statDrafts, drafts);
+  animateNumber(statApps, apps);
+  animateNumber(statMsgs, unread);
+}
+
+function animateNumber(el, target){
+  const start = 0;
+  const duration = 600;
+  const stepTime = 30;
+  const steps = Math.ceil(duration / stepTime);
+  let cur = 0;
+  const inc = (target - start) / steps;
+  const iv = setInterval(()=>{
+    cur += inc;
+    el.textContent = Math.round(cur);
+    if((inc > 0 && cur >= target) || (inc < 0 && cur <= target)){ el.textContent = target; clearInterval(iv); }
+  }, stepTime);
+}
+
+function renderListings(filter=''){
+  listingsEl.innerHTML = '';
+  let list = properties.slice();
+  if(filter) list = list.filter(p => (p.title + ' ' + p.area).toLowerCase().includes(filter.toLowerCase()));
+  list.forEach((p, idx) => {
+    const card = document.createElement('div');
+    card.className = 'listing-card';
+    card.style.animationDelay = (idx*60) + 'ms';
+    setTimeout(()=> card.classList.add('show'), 20 + idx*60);
+    card.innerHTML = `
+      <div class="thumb" style="background-image:url('${p.img}')"></div>
+      <div class="l-info">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <div>
+            <div class="l-title">${s(p.title)}</div>
+            <div class="l-meta">${s(p.area)} · RM ${p.price}</div>
+          </div>
+          <div class="badge ${p.status === 'published' ? 'published' : ''}">${p.status}</div>
+        </div>
+        <div class="l-stats">
+          <div class="tiny">Views: ${p.views}</div>
+          <div class="tiny">Beds: ${p.beds}</div>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-ghost" href="property.html?id=${p.id}">View</a>
+        <button class="btn btn-ghost" data-action="edit" data-id="${p.id}">Edit</button>
+        <button class="btn btn-ghost" data-action="toggle" data-id="${p.id}">${p.status === 'published' ? 'Pause' : 'Publish'}</button>
+        <button class="btn btn-ghost" data-action="delete" data-id="${p.id}" style="color:var(--danger)">Delete</button>
+      </div>
+    `;
+    listingsEl.appendChild(card);
+  });
+}
+
+function renderApplications(){
+  applicationsEl.innerHTML = '';
+  applications.forEach(app => {
+    const el = document.createElement('div');
+    el.className = 'app-card';
+    el.innerHTML = `
+      <div class="left">
+        <div class="avatar-sm">${s(app.applicant.split(' ').map(n=>n[0]).join('').slice(0,2))}</div>
+        <div style="margin-left:8px">
+          <div style="font-weight:700">${s(app.applicant)}</div>
+          <div class="tiny">${s(app.studentId)} · ${s(app.submitted)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="tiny" style="margin-right:8px">${s(app.status)}</div>
+        <button class="btn btn-ghost" data-action="view-app" data-id="${app.id}">View</button>
+      </div>
+    `;
+    applicationsEl.appendChild(el);
+  });
+}
+
+function renderMessages(){
+  msgListEl.innerHTML = '';
+  messages.forEach(m => {
+    const el = document.createElement('div');
+    el.className = 'msg-item';
+    el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:700">${s(m.from)}</div>
+        <div class="tiny">${s(m.preview)}</div>
+      </div>
+      <div class="tiny">${s(m.time)}</div>
+    </div>`;
+    msgListEl.appendChild(el);
+  });
+}
+
+/* ====================
+   Interactions
+   ==================== */
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action], a[data-action]');
+  if(!btn) return;
+  const action = btn.getAttribute('data-action');
+  const id = btn.getAttribute('data-id') && Number(btn.getAttribute('data-id'));
+  if(action === 'edit'){ // navigate to create-listing with id
+    window.location.href = `create-listing.html?id=${id}`;
+  } else if(action === 'toggle'){
+    togglePublish(id);
+  } else if(action === 'delete'){
+    confirmDeleteListing(id);
+  } else if(action === 'view-app'){
+    viewApplication(id);
+  }
+});
+
+searchList.addEventListener('input', (e)=> {
+  renderListings(e.target.value);
+});
+
+/* toggle publish/draft */
+function togglePublish(id){
+  const idx = properties.findIndex(p => p.id === id);
+  if(idx === -1) return;
+  const p = properties[idx];
+  if(p.status === 'published'){ p.status = 'paused'; showToast('Listing paused'); }
+  else { p.status = 'published'; showToast('Listing published'); }
+  renderListings(searchList.value);
+  renderStats();
+  // TODO: call API to update listing status
+}
+
+/* delete confirm */
+function confirmDeleteListing(id){
+  modalContent.innerHTML = `<h3>Delete listing</h3><p>Are you sure you want to delete this listing? This action cannot be undone.</p>`;
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+  modalPrimary.style.display = 'inline-block';
+  modalPrimary.textContent = 'Delete';
+  modalPrimary.onclick = ()=> {
+    deleteListing(id);
+    closeModal();
+  };
+}
+
+/* delete implementation */
+function deleteListing(id){
+  const i = properties.findIndex(p=>p.id===id);
+  if(i===-1) return;
+  properties.splice(i,1);
+  // remove relevant applications
+  for(let j = applications.length-1; j>=0; j--){ if(applications[j].propertyId === id) applications.splice(j,1); }
+  renderListings(searchList.value);
+  renderApplications();
+  renderStats();
+  showToast('Listing deleted', 'linear-gradient(90deg,var(--danger),#ff8b8b)');
+  // TODO: patch server API to delete listing
+}
+
+/* view application modal */
+function viewApplication(id){
+  const a = applications.find(x=>x.id === id);
+  if(!a) return;
+  modalContent.innerHTML = `<h3>Application from ${s(a.applicant)}</h3>
+    <p><strong>Student ID:</strong> ${s(a.studentId)}</p>
+    <p><strong>Submitted:</strong> ${s(a.submitted)}</p>
+    <p><strong>Message:</strong> ${s(a.message)}</p>
+    <p><strong>Status:</strong> <span id="appStatus">${s(a.status)}</span></p>`;
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+  modalPrimary.style.display = 'inline-block';
+  modalPrimary.textContent = 'Accept';
+  modalPrimary.onclick = ()=> {
+    a.status = 'accepted';
+    showToast('Application accepted', 'linear-gradient(90deg,var(--success),#6df0a8)');
+    renderApplications();
+    closeModal();
+  };
+}
+
+/* close modal */
+function closeModal(){ modalBackdrop.style.display = 'none'; modalBackdrop.setAttribute('aria-hidden','true'); modalPrimary.style.display = 'none'; modalPrimary.onclick = null; }
+
+/* modal cancel */
+modalCancel.addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', (e)=> { if(e.target === modalBackdrop) closeModal(); });
+
+/* ====================
+   Geolocation -> address
+   ==================== */
+async function locateAndResolve(){
+  if(!navigator.geolocation){ addrText.textContent = 'Geolocation not supported'; return; }
+  locBtn.textContent = 'Locating…';
+  try{
+    const pos = await new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:12000}));
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    // reverse geocode (Nominatim) — demo
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2`);
+    if(!resp.ok) throw new Error('geocode failed');
+    const data = await resp.json();
+    addrText.textContent = data.display_name || (data.address && (data.address.city || data.address.town || data.address.village)) || 'Nearby area';
+    locBtn.textContent = 'Refresh location';
+  }catch(err){
+    console.warn(err);
+    addrText.textContent = 'Location unavailable or permission denied';
+    locBtn.textContent = 'Refresh location';
+  }
+}
+locBtn.addEventListener('click', locateAndResolve);
+
+/* ====================
+   Init
+   ==================== */
+(function init(){
+  renderStats();
+  renderListings();
+  renderApplications();
+  renderMessages();
+  lastSync.textContent = 'Last sync: just now';
+  // attempt to prefetch location if permission granted
+  if(navigator.permissions){
+    navigator.permissions.query({name:'geolocation'}).then(res=> {
+      if(res.state === 'granted') locateAndResolve();
+    }).catch(()=>{});
+  }
+  // attempt to load immediately (non-blocking)
+  locateAndResolve();
+})();
+
+</script>
+</body>
+</html>

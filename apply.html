@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Apply — UKM Students off School Rented System</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card-bg: rgba(255,255,255,0.92);
+    --accent:#1e88ff; --accent-2:#0b3d91;
+    --ink:#071028; --muted:#6a7480;
+    --radius:14px; --shadow:0 18px 40px rgba(7,12,25,0.12);
+    --ease:cubic-bezier(.2,.9,.2,1);
+    --success:#17c964; --danger:#ff6257;
+  }
+
+  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial;background:linear-gradient(180deg,#eef3fb,#fff);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{min-height:100vh;padding:18px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 360ms var(--ease) forwards}
+  @keyframes pageIn{to{opacity:1;transform:none}}
+
+  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,0.75), rgba(255,255,255,0.6));backdrop-filter:blur(8px);border-radius:calc(var(--radius)+6px);padding:12px 16px;box-shadow:var(--shadow)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:44px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;font-weight:700}
+  .title{font-weight:700}
+  nav.actions{display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff}
+  .btn-ghost{background:transparent;border:1px solid rgba(10,16,28,0.06);color:var(--accent-2)}
+  .tiny{font-size:13px;color:var(--muted)}
+
+  main.layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:14px}
+  @media (max-width:1000px){ main.layout{grid-template-columns:1fr} }
+
+  .card{background:var(--card-bg);border-radius:14px;padding:16px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
+  h2{margin:0 0 8px 0}
+
+  form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .full{grid-column:1/-1}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type="text"],input[type="email"],input[type="tel"],input[type="number"],select,textarea,input[type="datetime-local"]{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(10,16,28,0.06);font-size:14px;background:white;box-sizing:border-box}
+  textarea{min-height:110px;resize:vertical}
+
+  .field{background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.96));padding:10px;border-radius:12px}
+  .small{font-size:13px;color:var(--muted)}
+
+  .uploads{display:flex;gap:12px;flex-wrap:wrap}
+  .u-preview{width:120px;height:88px;border-radius:8px;background:#f6f8fb;border:1px dashed rgba(10,16,28,0.06);display:grid;place-items:center;font-size:12px;color:var(--muted);position:relative;overflow:hidden}
+  .u-preview img{width:100%;height:100%;object-fit:cover}
+  .u-remove{position:absolute;right:6px;top:6px;background:rgba(255,255,255,0.9);border-radius:8px;padding:4px;font-size:12px;cursor:pointer}
+
+  .actions{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .msg{padding:10px;border-radius:10px;font-size:13px;display:none}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:80}
+  .modal{width:min(520px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
+
+  /* toast */
+  .__toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:90;padding:8px 14px;border-radius:10px;color:#fff;box-shadow:0 10px 30px rgba(14,54,120,0.12)}
+
+  .disabled{opacity:0.6;pointer-events:none}
+  .fade-in{animation:fadeIn 360ms var(--ease) forwards}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <header class="appbar" role="banner">
+      <div class="brand">
+        <div class="logo">UKM</div>
+        <div>
+          <div class="title">UKM Students off School Rented System</div>
+          <div class="tiny">Student Application</div>
+        </div>
+      </div>
+
+      <nav class="actions">
+        <a href="index.html" class="btn btn-ghost">Home</a>
+        <a href="property.html" class="btn btn-ghost">Properties</a>
+        <a href="host-dashboard.html" class="btn btn-ghost">Host Dashboard</a>
+        <a href="login.html" class="btn btn-ghost">Log in</a>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <!-- left: application form -->
+      <section class="card fade-in" aria-labelledby="formTitle">
+        <h2 id="formTitle">Submit Application</h2>
+        <p class="small">Fill the form below to apply for the listing. 上传的文件最大 3MB，支持 JPG/PNG/PDF。若为游客，你会被提示登录。</p>
+
+        <form id="applyForm" novalidate class="fade-in">
+          <div class="field full">
+            <label for="propertyRef">Property (ID / Title) *</label>
+            <input id="propertyRef" name="propertyRef" type="text" placeholder="e.g. 101 or Studio near UKM - 5 min" required />
+          </div>
+
+          <div class="field">
+            <label for="fullname">Full name *</label>
+            <input id="fullname" name="fullname" type="text" placeholder="Your full name" required />
+          </div>
+
+          <div class="field">
+            <label for="matric">Matric number *</label>
+            <input id="matric" name="matric" type="text" placeholder="e.g. A199958" required />
+          </div>
+
+          <div class="field">
+            <label for="email">Email *</label>
+            <input id="email" name="email" type="email" placeholder="you@uni.edu.my" required />
+          </div>
+
+          <div class="field">
+            <label for="phone">Contact phone *</label>
+            <input id="phone" name="phone" type="tel" placeholder="+60 12 345 6789" required />
+          </div>
+
+          <div class="field">
+            <label for="moveIn">Desired move-in date *</label>
+            <input id="moveIn" name="moveIn" type="date" required />
+          </div>
+
+          <div class="field full">
+            <label for="message">Message to landlord</label>
+            <textarea id="message" name="message" placeholder="Introduce yourself, explain duration, guarantor, etc."></textarea>
+          </div>
+
+          <div class="field full">
+            <label>Upload documents (Student ID / Guarantor ID / Additional)</label>
+            <div class="uploads" id="uploadsArea">
+              <div class="u-preview" id="addFileBtn" title="Add files" style="cursor:pointer">＋ Add files</div>
+            </div>
+            <div class="small" style="margin-top:8px">Allowed types: JPG / PNG / PDF. Max 3MB each. You can upload multiple files.</div>
+          </div>
+
+          <div class="field full">
+            <label for="agree">Terms</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="agree" name="agree" type="checkbox" />
+              <label for="agree">I agree to the <a href="terms.html" target="_blank">Terms</a> & <a href="privacy.html" target="_blank">Privacy</a>.</label>
+            </div>
+          </div>
+
+          <div class="full" style="display:flex;gap:10px;align-items:center">
+            <button id="submitBtn" class="btn btn-primary" type="submit">Submit application</button>
+            <button id="saveDraft" type="button" class="btn btn-ghost">Save draft</button>
+            <div id="formMsg" class="msg" role="status" aria-live="polite"></div>
+          </div>
+        </form>
+      </section>
+
+      <!-- right: side info -->
+      <aside class="card fade-in">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Your current address</div>
+          <div class="tiny">Optional</div>
+        </div>
+
+        <div style="margin-top:8px">
+          <div id="addrText" class="tiny" style="color:var(--muted)">Detecting address…</div>
+          <div style="margin-top:8px">
+            <button id="locBtn" class="btn btn-ghost">Use my location</button>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div style="font-weight:700">Tips for stronger application</div>
+        <ul style="margin-top:8px;color:#24303b">
+          <li>Attach a clear copy of your student ID.</li>
+          <li>Provide short guarantor contact if required by landlord.</li>
+          <li>Keep message polite and specific about move-in date.</li>
+        </ul>
+
+        <div style="height:12px"></div>
+        <div style="font-weight:700">Help</div>
+        <div class="tiny" style="margin-top:8px;color:var(--muted)">If you have problems uploading, email support or contact the host via property page.</div>
+
+      </aside>
+    </main>
+
+    <footer style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;margin-top:12px">© 2025 UKM Students off School Rented System</footer>
+  </div>
+
+  <!-- modal for sign-in / preview -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" id="modal" role="document">
+      <div id="modalContent"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button id="modalClose" class="btn btn-ghost">Close</button>
+        <button id="modalPrimary" class="btn btn-primary" style="display:none">OK</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ------------------------------
+   Demo auth helpers (localStorage)
+   ------------------------------
+   - ukm_logged_in: boolean
+   - ukm_is_guest: boolean
+   - ukm_user_role: 'student'/'landlord'/'agent' (for context)
+*/
+function isLoggedIn(){ try{ return !!JSON.parse(localStorage.getItem('ukm_logged_in')); }catch(e){ return false; } }
+function isGuest(){ try{ return !!JSON.parse(localStorage.getItem('ukm_is_guest')); }catch(e){ return false; } }
+function getUserRole(){ try{ return localStorage.getItem('ukm_user_role') || 'student'; }catch(e){ return 'student'; } }
+
+/* ------------------------------
+   Element refs
+   ------------------------------ */
+const uploadsArea = document.getElementById('uploadsArea');
+const addFileBtn = document.getElementById('addFileBtn');
+const applyForm = document.getElementById('applyForm');
+const submitBtn = document.getElementById('submitBtn');
+const saveDraft = document.getElementById('saveDraft');
+const formMsg = document.getElementById('formMsg');
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalContent = document.getElementById('modalContent');
+const modalClose = document.getElementById('modalClose');
+const modalPrimary = document.getElementById('modalPrimary');
+const addrText = document.getElementById('addrText');
+const locBtn = document.getElementById('locBtn');
+
+/* ------------------------------
+   Upload state
+   ------------------------------ */
+let uploadedFiles = []; // { file, url, name, type }
+
+/* Helpers */
+function showToast(text, bg='linear-gradient(90deg,var(--accent),var(--accent-2))'){
+  let el = document.querySelector('.__toast');
+  if(!el){ el = document.createElement('div'); el.className='__toast'; document.body.appendChild(el); }
+  el.style.background = bg; el.textContent = text; el.style.opacity='1';
+  setTimeout(()=> el.style.opacity='0', 3000);
+}
+function s(t){ return String(t).replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* Render uploads */
+function renderUploads(){
+  // remove existing previews except add button
+  uploadsArea.querySelectorAll('.u-preview').forEach(n => { if(n !== addFileBtn) n.remove(); });
+  uploadedFiles.forEach((u, idx) => {
+    const div = document.createElement('div');
+    div.className = 'u-preview';
+    if(u.type && u.type.startsWith('image')){
+      div.innerHTML = `<img src="${u.url}" alt="${s(u.name)}"><div class="u-remove" data-idx="${idx}">✕</div>`;
+    } else {
+      div.innerHTML = `<div style="padding:8px;text-align:center">${s(u.name)}</div><div class="u-remove" data-idx="${idx}">✕</div>`;
+    }
+    uploadsArea.insertBefore(div, addFileBtn);
+    div.querySelector('.u-remove').addEventListener('click', ()=> {
+      uploadedFiles.splice(idx,1);
+      renderUploads();
+    });
+  });
+}
+
+/* Add file via file input */
+addFileBtn.addEventListener('click', ()=> {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,application/pdf';
+  input.multiple = true;
+  input.onchange = (e)=> {
+    const files = Array.from(e.target.files || []);
+    files.forEach(f => addUploadedFile(f));
+  };
+  input.click();
+});
+
+/* Drag & drop */
+uploadsArea.addEventListener('dragover', (e)=> { e.preventDefault(); uploadsArea.style.opacity = .9; });
+uploadsArea.addEventListener('dragleave', ()=> { uploadsArea.style.opacity = 1; });
+uploadsArea.addEventListener('drop', (e)=> {
+  e.preventDefault(); uploadsArea.style.opacity = 1;
+  const dt = e.dataTransfer;
+  if(!dt) return;
+  const items = Array.from(dt.files || []);
+  items.forEach(f => addUploadedFile(f));
+});
+
+/* File add logic */
+function addUploadedFile(f){
+  const allowed = ['image/jpeg','image/png','application/pdf'];
+  if(!allowed.includes(f.type)){
+    alert('仅支持 JPG / PNG / PDF 格式');
+    return;
+  }
+  if(f.size > 3*1024*1024){
+    alert('文件过大，最大 3MB');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ()=> {
+    uploadedFiles.push({ file: f, url: reader.result, name: f.name, type: f.type });
+    renderUploads();
+  };
+  // images: read as dataURL for preview; pdf also can be read but will be large — ok for demo
+  reader.readAsDataURL(f);
+}
+
+/* ------------------------------
+   Geolocation + reverse geocode
+   ------------------------------ */
+async function requestLocationAndAddress(){
+  if(!navigator.geolocation){ addrText.textContent = 'Geolocation not supported'; return; }
+  locBtn.textContent = 'Locating…';
+  try{
+    const pos = await new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:12000}));
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    // Nominatim free reverse geocode (demo). For production use proxy/paid.
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2`);
+    if(!resp.ok) throw new Error('geocode failed');
+    const data = await resp.json();
+    addrText.textContent = data.display_name || (data.address && (data.address.city || data.address.town || data.address.village)) || 'Nearby area';
+    locBtn.textContent = 'Refresh location';
+  }catch(err){
+    console.warn(err);
+    addrText.textContent = 'Location unavailable or permission denied';
+    locBtn.textContent = 'Refresh location';
+  }
+}
+locBtn.addEventListener('click', requestLocationAndAddress);
+
+/* Try cached location on load */
+(function tryCachedLocation(){
+  const stored = localStorage.getItem('ukm_last_loc');
+  if(stored){
+    try{
+      const obj = JSON.parse(stored);
+      if(obj && obj.lat && obj.lon){
+        // attempt reverse geocode (non-blocking)
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${obj.lat}&lon=${obj.lon}&format=jsonv2`).then(r=>r.json()).then(data=>{
+          addrText.textContent = data.display_name || 'Nearby area';
+        }).catch(()=>{});
+      }
+    }catch(e){}
+  }
+})();
+
+/* ------------------------------
+   Form submit & validation
+   ------------------------------ */
+applyForm.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  // guest/login check
+  if(!isLoggedIn() || isGuest()){
+    // show sign-in modal
+    openModal(`<h3>Sign in required</h3><p>请先以学生账号登录以提交申请（若你是游客或未登录）。</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><a href="login.html" class="btn btn-ghost">Sign in</a><a href="register.html" class="btn btn-primary">Register</a></div>`);
+    return;
+  }
+
+  // validate required fields
+  const prop = document.getElementById('propertyRef').value.trim();
+  const name = document.getElementById('fullname').value.trim();
+  const matric = document.getElementById('matric').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const moveIn = document.getElementById('moveIn').value;
+  const agree = document.getElementById('agree').checked;
+
+  if(!prop || !name || !matric || !email || !phone || !moveIn){
+    showFormMsg('请填写所有必填字段（星号 * 标注）。', true);
+    return;
+  }
+  if(!agree){
+    showFormMsg('请同意条款以提交申请。', true);
+    return;
+  }
+  // at least one file recommended (but optional)
+  // prepare FormData
+  const fd = new FormData();
+  fd.append('property', prop);
+  fd.append('fullname', name);
+  fd.append('matric', matric);
+  fd.append('email', email);
+  fd.append('phone', phone);
+  fd.append('moveIn', moveIn);
+  fd.append('message', document.getElementById('message').value.trim());
+  // append uploaded files
+  uploadedFiles.forEach((u, idx) => fd.append('files[]', u.file, u.name));
+
+  // UI
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
+
+  try{
+    // DEMO: simulate network request
+    await new Promise(res => setTimeout(res, 1000));
+    // In production: replace with fetch('/api/applications', { method:'POST', body: fd, credentials:'include' })
+    showFormMsg('Application submitted successfully.', false);
+    showToast('Application submitted');
+    // optionally redirect to applications page
+    // window.location.href = 'applications.html';
+    submitBtn.textContent = 'Submitted';
+    setTimeout(()=> { submitBtn.disabled = false; submitBtn.textContent = 'Submit application'; }, 900);
+    // clear draft
+    localStorage.removeItem('ukm_application_draft');
+  }catch(err){
+    console.error(err);
+    showFormMsg('提交失败，请稍后再试。', true);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit application';
+  }
+});
+
+/* Save draft */
+saveDraft.addEventListener('click', ()=>{
+  const draft = {
+    property: document.getElementById('propertyRef').value,
+    fullname: document.getElementById('fullname').value,
+    matric: document.getElementById('matric').value,
+    email: document.getElementById('email').value,
+    phone: document.getElementById('phone').value,
+    moveIn: document.getElementById('moveIn').value,
+    message: document.getElementById('message').value,
+    files: uploadedFiles.map(f => ({ name: f.name, url: f.url })) // note: file objects not persisted, only previews
+  };
+  localStorage.setItem('ukm_application_draft', JSON.stringify(draft));
+  showFormMsg('已保存至本地草稿（浏览器）', false);
+});
+
+/* Load draft if exists */
+(function loadDraft(){
+  try{
+    const d = JSON.parse(localStorage.getItem('ukm_application_draft') || 'null');
+    if(d){
+      document.getElementById('propertyRef').value = d.property || '';
+      document.getElementById('fullname').value = d.fullname || '';
+      document.getElementById('matric').value = d.matric || '';
+      document.getElementById('email').value = d.email || '';
+      document.getElementById('phone').value = d.phone || '';
+      document.getElementById('moveIn').value = d.moveIn || '';
+      document.getElementById('message').value = d.message || '';
+      if(Array.isArray(d.files)){
+        uploadedFiles = d.files.map(x => ({ file: null, url: x.url, name: x.name, type: '' }));
+        renderUploads();
+      }
+      if(d.property) showToast('已载入本地草稿');
+    }
+  }catch(e){}
+})();
+
+/* show message area */
+function showFormMsg(text, isError=true){
+  formMsg.style.display = 'block';
+  formMsg.textContent = text;
+  formMsg.style.background = isError ? 'rgba(255,98,87,0.08)' : 'rgba(23,201,100,0.08)';
+  formMsg.style.color = isError ? 'var(--danger)' : 'var(--success)';
+  setTimeout(()=> formMsg.style.display = 'none', 4800);
+}
+
+/* ------------------------------
+   Modal helpers (sign-in or preview)
+   ------------------------------ */
+function openModal(html, primaryText, primaryCb){
+  modalContent.innerHTML = html;
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+  modalPrimary.style.display = primaryText ? 'inline-block' : 'none';
+  modalPrimary.textContent = primaryText || '';
+  modalPrimary.onclick = primaryCb || null;
+}
+function closeModal(){ modalBackdrop.style.display = 'none'; modalBackdrop.setAttribute('aria-hidden','true'); modalPrimary.onclick = null; }
+modalClose.addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', (e)=> { if(e.target === modalBackdrop) closeModal(); });
+
+/* ------------------------------
+   Keyboard niceties
+   ------------------------------ */
+document.addEventListener('keydown', (e)=> {
+  if(e.key === 'Escape') closeModal();
+});
+
+/* ------------------------------
+   Demo: set logged-in student state for quick testing
+   ------------------------------
+   // 在控制台运行以下三行以模拟登录学生：
+   // localStorage.setItem('ukm_logged_in', JSON.stringify(true));
+   // localStorage.setItem('ukm_user_role', 'student');
+   // localStorage.setItem('ukm_is_guest', JSON.stringify(false));
+*/
+(function init(){
+  // Best-effort: if not logged in, show gentle prompt but do not block viewing
+  if(!isLoggedIn()){
+    showToast('未登录：提交申请前会提示你登录。');
+  } else {
+    // if logged in but not student, it's okay—still allow submission (some flows may restrict)
+    showToast('已登录：你可以提交申请。');
+  }
+})();
+</script>
+</body>
+</html>

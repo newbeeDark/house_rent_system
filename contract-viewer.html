@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Contract Viewer & Upload — UKM Students off School Rented System</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card-bg: rgba(255,255,255,0.94);
+    --accent:#1e88ff; --accent-2:#0b3d91;
+    --ink:#071028; --muted:#6a7480;
+    --radius:14px; --shadow:0 18px 40px rgba(7,12,25,0.12);
+    --ease:cubic-bezier(.2,.9,.2,1);
+    --danger:#ff6257; --success:#17c964;
+  }
+  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial;background:linear-gradient(180deg,#eef3fb,#fff);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{min-height:100vh;padding:18px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}
+  @keyframes pageIn{to{opacity:1;transform:none}}
+
+  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:calc(var(--radius)+6px);background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.6));box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:700}
+  nav.actions{display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-size:14px}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff}
+  .btn-ghost{background:transparent;border:1px solid rgba(10,16,28,0.06);color:var(--accent-2)}
+  .tiny{font-size:13px;color:var(--muted)}
+
+  main.layout{display:grid;grid-template-columns:1fr 380px;gap:18px;margin-top:14px}
+  @media(max-width:1000px){ main.layout{grid-template-columns:1fr} }
+
+  .card{background:var(--card-bg);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
+  h2{margin:0 0 8px 0}
+
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=file]{display:none}
+
+  .viewer{height:72vh;border-radius:12px;overflow:hidden;border:1px solid rgba(10,16,28,0.04);background:#fff}
+  .viewer iframe{width:100%;height:100%;border:0}
+
+  .versions{display:flex;flex-direction:column;gap:10px;max-height:48vh;overflow:auto;padding-right:6px}
+  .version-item{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid rgba(10,16,28,0.02)}
+  .version-item .meta{flex:1;display:flex;flex-direction:column}
+  .label{font-weight:700}
+  .muted{font-size:13px;color:var(--muted)}
+
+  .sig-canvas{border-radius:8px;border:1px solid rgba(10,16,28,0.06);background:#fff}
+  .sig-actions{display:flex;gap:8px;margin-top:8px}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:90}
+  .modal{width:min(720px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
+
+  .__toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;padding:8px 14px;border-radius:10px;color:#fff;box-shadow:0 10px 30px rgba(14,54,120,0.12)}
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <header class="appbar">
+      <div class="brand">
+        <div class="logo">UKM</div>
+        <div>
+          <div style="font-weight:700">UKM Students off School Rented System</div>
+          <div class="tiny">Contract Viewer & Upload</div>
+        </div>
+      </div>
+
+      <nav class="actions">
+        <a href="index.html" class="btn btn-ghost">Home</a>
+        <a href="host-dashboard.html" class="btn btn-ghost">Dashboard</a>
+        <a href="applications.html" class="btn btn-ghost">Applications</a>
+        <a href="login.html" class="btn btn-ghost">Log in</a>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <!-- left: main viewer -->
+      <section class="card" aria-labelledby="viewerTitle">
+        <h2 id="viewerTitle">Contract preview</h2>
+        <p class="tiny">Preview the uploaded contract here. You can upload a PDF, request signature, or upload a signed contract.</p>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+          <div class="controls">
+            <label class="btn btn-ghost" title="Upload contract (PDF)"><input id="uploadContract" type="file" accept="application/pdf" />Upload contract (PDF)</label>
+            <label class="btn btn-ghost" title="Upload signed contract (PDF)"><input id="uploadSigned" type="file" accept="application/pdf" />Upload signed contract</label>
+            <button id="requestSigBtn" class="btn btn-primary">Request signature</button>
+            <button id="downloadContract" class="btn btn-ghost">Download</button>
+          </div>
+          <div class="tiny">System: demo-only — files stored in browser memory</div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="viewer" id="viewer">
+          <iframe id="pdfFrame" srcdoc="<p style='padding:18px'>No contract uploaded</p>"></iframe>
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <div class="muted">Current contract:</div>
+          <div id="currentLabel" style="font-weight:700">None</div>
+        </div>
+      </section>
+
+      <!-- right: sidebar (versions + signature) -->
+      <aside class="card">
+        <h3 style="margin:0">Contract versions</h3>
+        <div class="muted" style="margin-top:6px">Uploaded files and signed versions</div>
+
+        <div style="height:12px"></div>
+
+        <div class="versions" id="versionsList">
+          <!-- filled by JS -->
+        </div>
+
+        <div style="height:14px"></div>
+
+        <h3 style="margin:0">On-screen signature</h3>
+        <div class="muted" style="margin-top:6px">Draw a signature, download as PNG, or attach to messages.</div>
+
+        <canvas id="sigCanvas" class="sig-canvas" width="320" height="140" style="display:block;margin-top:10px"></canvas>
+        <div class="sig-actions">
+          <button id="sigClear" class="btn btn-ghost">Clear</button>
+          <button id="sigDownload" class="btn btn-primary">Download signature</button>
+          <button id="attachSig" class="btn btn-ghost">Attach to message</button>
+        </div>
+
+        <div style="height:18px"></div>
+
+        <h3 style="margin:0">Actions / Notes</h3>
+        <div class="muted" style="margin-top:8px">Notes:</div>
+        <ul style="margin-top:8px">
+          <li>To embed a signature into the PDF you will need server-side merging or a client PDF library (e.g., pdf-lib). This UI only collects the signature image and contract files.</li>
+          <li>In production, upload files to backend storage (S3) and return secure URLs. Enforce access control and audit trail.</li>
+        </ul>
+      </aside>
+    </main>
+
+    <footer style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;margin-top:12px">© 2025 UKM Students off School Rented System</footer>
+  </div>
+
+  <!-- login modal -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal">
+      <h3>Sign in required</h3>
+      <p>Uploading or requesting signatures requires signing in. Please sign in or register.</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <a href="login.html" class="btn btn-ghost">Sign in</a>
+        <a href="register.html" class="btn btn-primary">Register</a>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* Contract Viewer & Upload — Demo client-side implementation
+   - Files are stored in-memory (session) / localStorage as object URLs for demo.
+   - Replace the storage + actions with server API calls in production.
+   - NOTE: embedding signature into PDF requires server or a client PDF library (pdf-lib) — not done here.
+*/
+
+/* ---------- Auth helpers (demo) ---------- */
+function isLoggedIn(){ try{ return !!JSON.parse(localStorage.getItem('ukm_logged_in')); }catch(e){ return false; } }
+function isGuest(){ try{ return !!JSON.parse(localStorage.getItem('ukm_is_guest')); }catch(e){ return false; } }
+
+/* ---------- DOM refs ---------- */
+const uploadContract = document.getElementById('uploadContract');
+const uploadSigned = document.getElementById('uploadSigned');
+const requestSigBtn = document.getElementById('requestSigBtn');
+const downloadContract = document.getElementById('downloadContract');
+const pdfFrame = document.getElementById('pdfFrame');
+const viewer = document.getElementById('viewer');
+const currentLabel = document.getElementById('currentLabel');
+const versionsList = document.getElementById('versionsList');
+const modalBackdrop = document.getElementById('modalBackdrop');
+
+/* signature refs */
+const sigCanvas = document.getElementById('sigCanvas');
+const sigClear = document.getElementById('sigClear');
+const sigDownload = document.getElementById('sigDownload');
+const attachSig = document.getElementById('attachSig');
+const sigCtx = sigCanvas.getContext('2d');
+
+/* ---------- In-memory storage (demo) ----------
+   Structure:
+   sessionContracts = [
+     { id, name, url, type: 'contract'|'signed', uploader, uploadedAt }
+   ]
+*/
+let sessionContracts = [];
+
+/* load from localStorage (optional) */
+try{
+  const raw = localStorage.getItem('ukm_contracts_demo');
+  if(raw) {
+    // can't store object URLs, so start with empty (demo only)
+    sessionContracts = JSON.parse(raw) || [];
+    sessionContracts = []; // ignore persisted for reliability
+  }
+}catch(e){ sessionContracts = []; }
+
+/* ---------- Helpers ---------- */
+function showToast(text,bg='linear-gradient(90deg,var(--accent),var(--accent-2))'){
+  let el = document.querySelector('.__toast');
+  if(!el){ el = document.createElement('div'); el.className='__toast'; document.body.appendChild(el); }
+  el.style.background = bg; el.textContent = text; el.style.opacity = '1';
+  setTimeout(()=> el.style.opacity = '0', 3000);
+}
+function s(t){ return String(t).replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* ---------- Rendering ---------- */
+function renderVersions(){
+  versionsList.innerHTML = '';
+  if(sessionContracts.length === 0){
+    versionsList.innerHTML = `<div class="muted">No files uploaded yet.</div>`;
+    currentLabel.textContent = 'None';
+    pdfFrame.srcdoc = `<p style="padding:18px">No contract uploaded</p>`;
+    return;
+  }
+  // latest contract shown at top (most recent)
+  sessionContracts.slice().reverse().forEach(item => {
+    const div = document.createElement('div'); div.className = 'version-item';
+    div.innerHTML = `<div class="meta">
+      <div class="label">${s(item.name)}</div>
+      <div class="muted">${s(item.type)} · uploaded by ${s(item.uploader || 'You')} · ${new Date(item.uploadedAt).toLocaleString()}</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" data-action="preview" data-id="${item.id}">Preview</button>
+      <a class="btn btn-ghost" href="${item.url}" download="${s(item.name)}">Download</a>
+      <button class="btn btn-ghost" data-action="delete" data-id="${item.id}" style="color:var(--danger)">Delete</button>
+    </div>`;
+    versionsList.appendChild(div);
+  });
+  // set current label to latest uploaded contract (prefer signed if exists)
+  const signed = sessionContracts.filter(i=>i.type==='signed').slice(-1)[0];
+  const base = signed || sessionContracts.filter(i=>i.type==='contract').slice(-1)[0];
+  if(base){
+    currentLabel.textContent = base.name;
+    previewFile(base.url);
+  } else {
+    currentLabel.textContent = 'None';
+    pdfFrame.srcdoc = `<p style="padding:18px">No contract available</p>`;
+  }
+}
+
+/* preview file in iframe */
+function previewFile(url){
+  // For PDFs we can set iframe src to url; for safety use object tag or iframe with URL.
+  pdfFrame.src = url;
+}
+
+/* ---------- File upload handlers ---------- */
+uploadContract.addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  if(!f.type || f.type !== 'application/pdf'){ showToast('Please upload a PDF'); uploadContract.value=''; return; }
+  if(f.size > 10*1024*1024){ showToast('File too large (max 10MB)'); uploadContract.value=''; return; }
+  if(!isLoggedIn() || isGuest()){ showSignInModal(); uploadContract.value=''; return; }
+
+  const url = URL.createObjectURL(f);
+  const rec = { id: Date.now(), name: f.name, url, type:'contract', uploader:getUserName(), uploadedAt:Date.now() };
+  sessionContracts.push(rec);
+  renderVersions();
+  showToast('Contract uploaded (demo)');
+  uploadContract.value='';
+});
+
+uploadSigned.addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  if(!f.type || f.type !== 'application/pdf'){ showToast('Please upload a signed PDF'); uploadSigned.value=''; return; }
+  if(f.size > 10*1024*1024){ showToast('File too large (max 10MB)'); uploadSigned.value=''; return; }
+  if(!isLoggedIn() || isGuest()){ showSignInModal(); uploadSigned.value=''; return; }
+
+  const url = URL.createObjectURL(f);
+  const rec = { id: Date.now(), name: f.name, url, type:'signed', uploader:getUserName(), uploadedAt:Date.now() };
+  sessionContracts.push(rec);
+  renderVersions();
+  showToast('Signed contract uploaded (demo)');
+  uploadSigned.value='';
+});
+
+/* versions list actions (preview / delete) */
+versionsList.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const action = btn.getAttribute('data-action');
+  const id = Number(btn.getAttribute('data-id'));
+  const idx = sessionContracts.findIndex(x=>x.id===id);
+  if(idx === -1) return;
+  if(action === 'preview'){
+    previewFile(sessionContracts[idx].url);
+    currentLabel.textContent = sessionContracts[idx].name;
+  } else if(action === 'delete'){
+    if(!isLoggedIn() || isGuest()){ showSignInModal(); return; }
+    // revoke object URL and remove
+    try{ URL.revokeObjectURL(sessionContracts[idx].url); }catch(e){}
+    sessionContracts.splice(idx,1);
+    renderVersions();
+    showToast('File removed (demo)');
+  }
+});
+
+/* download current contract */
+downloadContract.addEventListener('click', ()=>{
+  if(sessionContracts.length === 0){ showToast('No contract to download'); return; }
+  // pick latest (signed preferred)
+  const signed = sessionContracts.filter(i=>i.type==='signed').slice(-1)[0];
+  const base = signed || sessionContracts.filter(i=>i.type==='contract').slice(-1)[0];
+  if(!base){ showToast('No contract to download'); return; }
+  const a = document.createElement('a'); a.href = base.url; a.download = base.name; a.click();
+});
+
+/* ---------- Request signature (simulate) ---------- */
+requestSigBtn.addEventListener('click', ()=>{
+  if(!isLoggedIn() || isGuest()){ showSignInModal(); return; }
+  // In production: send an API call to create a signature request, send email/SMS/notification
+  showToast('Signature request created (demo). Applicant has been notified.');
+  // optionally add a local "task" (demo)
+});
+
+/* ---------- Signature canvas ---------- */
+let drawing = false, lastX = 0, lastY = 0;
+function setCanvasSize(){
+  // scale for device pixel ratio
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = sigCanvas.clientWidth;
+  const cssH = sigCanvas.clientHeight;
+  sigCanvas.width = cssW * dpr;
+  sigCanvas.height = cssH * dpr;
+  sigCtx.scale(dpr, dpr);
+  sigCtx.lineJoin = 'round';
+  sigCtx.lineCap = 'round';
+  sigCtx.lineWidth = 2.4;
+  sigCtx.strokeStyle = '#071028';
+  // clear white bg
+  sigCtx.fillStyle = '#fff';
+  sigCtx.fillRect(0,0,cssW,cssH);
+}
+setCanvasSize();
+window.addEventListener('resize', ()=> {
+  // preserve drawing could be implemented; for demo we clear on resize
+  setCanvasSize();
+});
+
+function pointerDown(e){
+  drawing = true;
+  const rect = sigCanvas.getBoundingClientRect();
+  lastX = (e.clientX || e.touches[0].clientX) - rect.left;
+  lastY = (e.clientY || e.touches[0].clientY) - rect.top;
+}
+function pointerMove(e){
+  if(!drawing) return;
+  const rect = sigCanvas.getBoundingClientRect();
+  const x = (e.clientX || e.touches[0].clientX) - rect.left;
+  const y = (e.clientY || e.touches[0].clientY) - rect.top;
+  sigCtx.beginPath();
+  sigCtx.moveTo(lastX, lastY);
+  sigCtx.lineTo(x, y);
+  sigCtx.stroke();
+  lastX = x; lastY = y;
+}
+function pointerUp(){ drawing = false; }
+
+sigCanvas.addEventListener('mousedown', pointerDown);
+sigCanvas.addEventListener('mousemove', pointerMove);
+sigCanvas.addEventListener('mouseup', pointerUp);
+sigCanvas.addEventListener('mouseout', pointerUp);
+sigCanvas.addEventListener('touchstart', (e)=> { e.preventDefault(); pointerDown(e); });
+sigCanvas.addEventListener('touchmove', (e)=> { e.preventDefault(); pointerMove(e); });
+sigCanvas.addEventListener('touchend', (e)=> { e.preventDefault(); pointerUp(e); });
+
+sigClear.addEventListener('click', ()=>{
+  setCanvasSize();
+  showToast('Signature cleared');
+});
+sigDownload.addEventListener('click', ()=>{
+  // export as PNG
+  const dataUrl = sigCanvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = 'signature.png';
+  a.click();
+  showToast('Signature downloaded (PNG)');
+});
+
+/* attach signature to message (demo) */
+attachSig.addEventListener('click', ()=>{
+  const dataUrl = sigCanvas.toDataURL('image/png');
+  // In production attach to message or upload to server, then include URL in notifications
+  showToast('Signature captured and attached to message (demo)');
+  // for demo: create a "signature" file in sessionContracts to simulate sending
+  const rec = { id: Date.now(), name: 'signature.png', url: dataUrl, type:'signature', uploader:getUserName(), uploadedAt:Date.now() };
+  sessionContracts.push(rec);
+  renderVersions();
+});
+
+/* ---------- Small utilities ---------- */
+function showSignInModal(){
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+}
+modalBackdrop.addEventListener('click', (e)=> { if(e.target === modalBackdrop){ modalBackdrop.style.display = 'none'; modalBackdrop.setAttribute('aria-hidden','true'); } });
+
+function getUserName(){
+  // demo: attempt a localStorage name, else fallback
+  try{
+    const p = JSON.parse(localStorage.getItem('ukm_profile') || 'null');
+    if(p && p.fullName) return p.fullName;
+  }catch(e){}
+  return 'Host';
+}
+
+/* ---------- Init ---------- */
+(function init(){
+  renderVersions();
+  // preload a placeholder contract for demo (optional)
+  // none by default
+  // if there's a query param ?demo=1 we can load a sample pdf via url (omitted)
+})();
+</script>
+</body>
+</html>

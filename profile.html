@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Profile — UKM Students off School Rented System</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card-bg: rgba(255,255,255,0.94);
+    --accent:#1e88ff; --accent-2:#0b3d91;
+    --ink:#071028; --muted:#6a7480;
+    --radius:14px; --shadow:0 18px 40px rgba(7,12,25,0.12);
+    --ease:cubic-bezier(.2,.9,.2,1);
+    --danger:#ff6257; --success:#17c964;
+  }
+  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial;background:linear-gradient(180deg,#eef3fb,#fff);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{min-height:100vh;padding:18px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}
+  @keyframes pageIn{to{opacity:1;transform:none}}
+
+  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:calc(var(--radius)+6px);background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.6));box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:700}
+  nav.actions{display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-size:14px}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff}
+  .btn-ghost{background:transparent;border:1px solid rgba(10,16,28,0.06);color:var(--accent-2)}
+  .tiny{font-size:13px;color:var(--muted)}
+
+  main.layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:14px}
+  @media(max-width:980px){ main.layout{grid-template-columns:1fr} }
+
+  .card{background:var(--card-bg);border-radius:12px;padding:16px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
+  h2{margin:0 0 8px 0}
+
+  form.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .full{grid-column:1/-1}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type="text"],input[type="email"],input[type="tel"],input[type="password"],select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(10,16,28,0.06);background:white;box-sizing:border-box;font-size:14px}
+  textarea{min-height:100px;resize:vertical}
+  .field{background:linear-gradient(180deg,rgba(255,255,255,0.98),#fff);padding:10px;border-radius:10px}
+
+  .avatar-area{display:flex;gap:12px;align-items:center}
+  .avatar-preview{width:88px;height:88px;border-radius:18px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:800;font-size:20px;overflow:hidden}
+  .avatar-preview img{width:100%;height:100%;object-fit:cover;display:block}
+  .small{font-size:13px;color:var(--muted)}
+
+  .uploads{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .u-box{padding:8px;border-radius:8px;background:#fff;border:1px solid rgba(10,16,28,0.04);display:flex;gap:8px;align-items:center}
+  .file-name{font-size:13px;color:var(--muted)}
+
+  .prefs{display:flex;flex-direction:column;gap:8px}
+
+  .actions{display:flex;gap:10px;align-items:center;margin-top:12px}
+  .danger{background:linear-gradient(90deg,var(--danger),#ff8b8b);color:white}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:90}
+  .modal{width:min(520px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
+
+  .__toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;padding:8px 14px;border-radius:10px;color:#fff;box-shadow:0 10px 30px rgba(14,54,120,0.12)}
+  .note{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <header class="appbar" role="banner">
+      <div class="brand">
+        <div class="logo">UKM</div>
+        <div>
+          <div style="font-weight:700">UKM Students off School Rented System</div>
+          <div class="tiny">Profile & Account Settings</div>
+        </div>
+      </div>
+
+      <nav class="actions" role="navigation">
+        <a href="index.html" class="btn btn-ghost">Home</a>
+        <a href="host-dashboard.html" class="btn btn-ghost">Dashboard</a>
+        <a href="create-listing.html" class="btn btn-ghost">Create Listing</a>
+        <a href="favorites.html" class="btn btn-ghost">Favourites</a>
+        <a href="login.html" class="btn btn-ghost">Log in</a>
+      </nav>
+    </header>
+
+    <main class="layout" role="main">
+      <section class="card" aria-labelledby="profileTitle">
+        <h2 id="profileTitle">My profile</h2>
+        <p class="note">Edit your personal details. Changes are saved locally in this demo — replace with API calls for production.</p>
+
+        <form id="profileForm" class="grid" novalidate>
+          <div class="field full">
+            <label>Avatar</label>
+            <div class="avatar-area">
+              <div class="avatar-preview" id="avatarPreview">UK</div>
+              <div style="flex:1">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input id="avatarInput" type="file" accept="image/*" style="display:none" />
+                  <button type="button" id="btnUploadAvatar" class="btn btn-ghost">Upload avatar</button>
+                  <button type="button" id="btnRemoveAvatar" class="btn btn-ghost">Remove</button>
+                  <div style="margin-left:auto" class="small" id="avatarInfo">Max 3 MB</div>
+                </div>
+                <div class="small" style="margin-top:8px">Avatar will be used on messages and listings.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="fullName">Full name</label>
+            <input id="fullName" type="text" placeholder="e.g. Ahmad bin Ali" />
+          </div>
+
+          <div class="field">
+            <label for="displayName">Display name</label>
+            <input id="displayName" type="text" placeholder="Public display name" />
+          </div>
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="you@example.com" />
+          </div>
+
+          <div class="field">
+            <label for="phone">Phone</label>
+            <input id="phone" type="tel" placeholder="+60 12 345 6789" />
+          </div>
+
+          <div class="field full">
+            <label for="roleSelect">Account role</label>
+            <select id="roleSelect">
+              <option value="student">Student</option>
+              <option value="landlord">Landlord</option>
+              <option value="agent">Agent</option>
+            </select>
+            <div class="note" style="margin-top:8px">Switching to Landlord/Agent typically requires verification (upload documents) — this page only simulates that flow.</div>
+          </div>
+
+          <div class="field full" id="docUploadArea">
+            <label>Identity / Verification documents</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="idInput" type="file" accept="image/*,application/pdf" style="display:none" />
+              <button type="button" id="btnUploadID" class="btn btn-ghost">Upload document</button>
+              <div id="idFiles" class="uploads" style="margin-left:8px"></div>
+            </div>
+            <div class="note" style="margin-top:8px">For landlords/agents, upload property proof or agency license as required (max 3 MB each).</div>
+          </div>
+
+          <div class="field full">
+            <label>Change password</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <input id="currentPwd" type="password" placeholder="Current password" />
+              <input id="newPwd" type="password" placeholder="New password" />
+              <input id="confirmPwd" type="password" placeholder="Confirm new password" class="full" />
+            </div>
+            <div id="pwdMsg" class="small" style="margin-top:8px;color:var(--muted)"></div>
+          </div>
+
+          <div class="field full">
+            <label>Notifications</label>
+            <div class="prefs">
+              <label><input id="prefEmail" type="checkbox" /> Email notifications</label>
+              <label><input id="prefSMS" type="checkbox" /> SMS notifications</label>
+              <label><input id="prefPush" type="checkbox" /> Push notifications (demo)</label>
+            </div>
+          </div>
+
+          <div class="field full">
+            <label>Privacy</label>
+            <div class="prefs">
+              <label><input id="profileVisibility" type="checkbox" /> Make profile visible to hosts</label>
+              <label><input id="showContact" type="checkbox" /> Show my contact on listings I post</label>
+            </div>
+          </div>
+
+          <div class="field full">
+            <label>Current detected address</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="address" type="text" placeholder="Allow location to detect" />
+              <button id="locBtn" type="button" class="btn btn-ghost">Detect</button>
+            </div>
+            <div class="note" id="addrHint" style="margin-top:8px">No map shown — only textual address for matching nearby listings.</div>
+          </div>
+
+          <div class="full" style="display:flex;gap:8px;align-items:center">
+            <button id="saveBtn" type="button" class="btn btn-primary">Save changes</button>
+            <button id="exportBtn" type="button" class="btn btn-ghost">Export profile</button>
+            <button id="signoutBtn" type="button" class="btn btn-ghost">Sign out</button>
+            <button id="deleteBtn" type="button" class="btn danger" style="margin-left:auto">Delete account</button>
+          </div>
+        </form>
+      </section>
+
+      <aside class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Account summary</div>
+          <div class="tiny">Profile</div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small"><strong>Role:</strong> <span id="summaryRole">—</span></div>
+          <div class="small" style="margin-top:6px"><strong>Email:</strong> <span id="summaryEmail">—</span></div>
+          <div class="small" style="margin-top:6px"><strong>Phone:</strong> <span id="summaryPhone">—</span></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-weight:700">Address</div>
+          <div id="addrText" class="note" style="margin-top:8px">Detecting address…</div>
+          <div style="margin-top:8px"><button id="refreshLoc" class="btn btn-ghost">Refresh location</button></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-weight:700">Help</div>
+          <ul style="margin-top:8px">
+            <li><a href="terms.html">Terms & Conditions</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="help.html">Account guide (placeholder)</a></li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+
+    <footer style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;margin-top:12px">© 2025 UKM Students off School Rented System</footer>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" id="modal">
+      <h3 id="modalTitle">Confirm account deletion</h3>
+      <p id="modalBody">Are you sure you want to permanently delete your account? This action cannot be undone.</p>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button id="modalCancel" class="btn btn-ghost">Cancel</button>
+        <button id="modalConfirm" class="btn danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ============================
+   Demo storage & auth helpers
+   ============================ */
+// In production, use real authentication and server-side user profile storage.
+function isLoggedIn(){ try{ return !!JSON.parse(localStorage.getItem('ukm_logged_in')); }catch(e){ return false; } }
+function isGuest(){ try{ return !!JSON.parse(localStorage.getItem('ukm_is_guest')); }catch(e){ return false; } }
+
+/* Simple demo profile shape saved to localStorage under 'ukm_profile' */
+const defaultProfile = {
+  fullName: '',
+  displayName: '',
+  email: '',
+  phone: '',
+  role: 'student',
+  avatar: null, // dataURL
+  docs: [],    // {name, url, type}
+  prefs: { email:true, sms:false, push:false },
+  privacy: { visible:true, showContact:false },
+  address: ''
+};
+
+/* ============================
+   DOM refs
+   ============================ */
+const avatarPreview = document.getElementById('avatarPreview');
+const btnUploadAvatar = document.getElementById('btnUploadAvatar');
+const avatarInput = document.getElementById('avatarInput');
+const btnRemoveAvatar = document.getElementById('btnRemoveAvatar');
+
+const fullName = document.getElementById('fullName');
+const displayName = document.getElementById('displayName');
+const email = document.getElementById('email');
+const phone = document.getElementById('phone');
+const roleSelect = document.getElementById('roleSelect');
+
+const btnUploadID = document.getElementById('btnUploadID');
+const idInput = document.getElementById('idInput');
+const idFilesDiv = document.getElementById('idFiles');
+
+const currentPwd = document.getElementById('currentPwd');
+const newPwd = document.getElementById('newPwd');
+const confirmPwd = document.getElementById('confirmPwd');
+const pwdMsg = document.getElementById('pwdMsg');
+
+const prefEmail = document.getElementById('prefEmail');
+const prefSMS = document.getElementById('prefSMS');
+const prefPush = document.getElementById('prefPush');
+
+const profileVisibility = document.getElementById('profileVisibility');
+const showContact = document.getElementById('showContact');
+
+const saveBtn = document.getElementById('saveBtn');
+const exportBtn = document.getElementById('exportBtn');
+const signoutBtn = document.getElementById('signoutBtn');
+const deleteBtn = document.getElementById('deleteBtn');
+
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalCancel = document.getElementById('modalCancel');
+const modalConfirm = document.getElementById('modalConfirm');
+
+const addrText = document.getElementById('addrText');
+const addressInput = document.getElementById('address');
+const locBtn = document.getElementById('locBtn');
+const refreshLoc = document.getElementById('refreshLoc');
+
+const summaryRole = document.getElementById('summaryRole');
+const summaryEmail = document.getElementById('summaryEmail');
+const summaryPhone = document.getElementById('summaryPhone');
+
+/* Toast */
+let toastTimer = null;
+function showToast(text, bg='linear-gradient(90deg,var(--accent),var(--accent-2))'){
+  let el = document.querySelector('.__toast');
+  if(!el){ el = document.createElement('div'); el.className='__toast'; document.body.appendChild(el); }
+  el.style.background = bg; el.textContent = text; el.style.opacity = '1';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.style.opacity = '0', 3000);
+}
+
+/* Sanitize */
+function s(t){ return String(t).replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* ============================
+   Profile load / save (demo)
+   ============================ */
+function loadProfile(){
+  try{
+    const p = JSON.parse(localStorage.getItem('ukm_profile') || 'null');
+    return p || JSON.parse(JSON.stringify(defaultProfile));
+  }catch(e){
+    return JSON.parse(JSON.stringify(defaultProfile));
+  }
+}
+
+function saveProfile(p){
+  localStorage.setItem('ukm_profile', JSON.stringify(p));
+}
+
+/* render profile into UI */
+function renderProfile(){
+  const p = loadProfile();
+  fullName.value = p.fullName || '';
+  displayName.value = p.displayName || '';
+  email.value = p.email || '';
+  phone.value = p.phone || '';
+  roleSelect.value = p.role || 'student';
+  // avatar
+  if(p.avatar){
+    avatarPreview.innerHTML = `<img src="${p.avatar}" alt="avatar">`;
+  } else {
+    avatarPreview.textContent = (p.displayName || 'UK').slice(0,2).toUpperCase();
+  }
+  // docs
+  idFilesDiv.innerHTML = '';
+  (p.docs || []).forEach((d, idx) => {
+    const box = document.createElement('div'); box.className='u-box';
+    box.innerHTML = `<div style="display:flex;flex-direction:column">
+      <div class="file-name">${s(d.name)}</div>
+      <div class="small">${d.type}</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <a href="${d.url}" download="${s(d.name)}" class="btn btn-ghost">Download</a>
+        <button class="btn btn-ghost" data-idx="${idx}">Remove</button>
+      </div>`;
+    idFilesDiv.appendChild(box);
+  });
+  // prefs
+  prefEmail.checked = !!p.prefs.email;
+  prefSMS.checked = !!p.prefs.sms;
+  prefPush.checked = !!p.prefs.push;
+  profileVisibility.checked = !!p.privacy.visible;
+  showContact.checked = !!p.privacy.showContact;
+
+  addressInput.value = p.address || '';
+  addrText.textContent = p.address || 'Not set';
+
+  summaryRole.textContent = p.role || '—';
+  summaryEmail.textContent = p.email || '—';
+  summaryPhone.textContent = p.phone || '—';
+}
+
+/* ============================
+   Avatar upload / remove
+   ============================ */
+btnUploadAvatar.addEventListener('click', ()=> avatarInput.click());
+avatarInput.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  if(!f.type.startsWith('image/')){ showToast('Invalid avatar file'); return; }
+  if(f.size > 3*1024*1024){ showToast('Avatar too large (max 3MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = ()=> {
+    const p = loadProfile();
+    p.avatar = reader.result;
+    saveProfile(p);
+    renderProfile();
+    showToast('Avatar updated');
+  };
+  reader.readAsDataURL(f);
+  avatarInput.value = '';
+});
+btnRemoveAvatar.addEventListener('click', ()=>{
+  const p = loadProfile();
+  p.avatar = null;
+  saveProfile(p);
+  renderProfile();
+  showToast('Avatar removed');
+});
+
+/* ============================
+   Document upload & remove
+   ============================ */
+btnUploadID.addEventListener('click', ()=> idInput.click());
+idInput.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  if(!(f.type.startsWith('image') || f.type === 'application/pdf')){ showToast('Invalid document type'); idInput.value=''; return; }
+  if(f.size > 3*1024*1024){ showToast('File too large (max 3MB)'); idInput.value=''; return; }
+  // store as objectURL in demo (in production upload to server)
+  const url = URL.createObjectURL(f);
+  const p = loadProfile();
+  p.docs = p.docs || [];
+  p.docs.push({ name: f.name, url, type: f.type });
+  saveProfile(p);
+  renderProfile();
+  showToast('Document uploaded (demo)');
+  idInput.value = '';
+});
+// remove doc button
+idFilesDiv.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-idx]');
+  if(!btn) return;
+  const idx = Number(btn.getAttribute('data-idx'));
+  const p = loadProfile();
+  if(p.docs && p.docs[idx]){
+    // revoke object URL if present
+    try{ URL.revokeObjectURL(p.docs[idx].url); }catch(e){}
+    p.docs.splice(idx,1);
+    saveProfile(p);
+    renderProfile();
+    showToast('Document removed');
+  }
+});
+
+/* ============================
+   Address detection (geolocation + reverse geocode)
+   ============================ */
+async function detectAddress(){
+  if(!navigator.geolocation){ addrText.textContent = 'Geolocation not supported'; return; }
+  locBtn.textContent = 'Locating…';
+  try{
+    const pos = await new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:12000}));
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    // reverse geocode via Nominatim (demo). Replace with server-side geocode or paid provider in production.
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2`);
+    if(!resp.ok) throw new Error('geocode failed');
+    const data = await resp.json();
+    const pretty = data.display_name || (data.address && (data.address.neighbourhood || data.address.suburb || data.address.city)) || '';
+    const p = loadProfile(); p.address = pretty || '';
+    saveProfile(p);
+    renderProfile();
+    showToast('Address detected');
+    locBtn.textContent = 'Detect';
+  }catch(err){
+    console.warn(err);
+    locBtn.textContent = 'Detect';
+    showToast('Location unavailable or permission denied', 'linear-gradient(90deg,var(--danger),#ff8b8b)');
+  }
+}
+locBtn.addEventListener('click', detectAddress);
+refreshLoc.addEventListener('click', detectAddress);
+
+/* ============================
+   Save changes / export
+   ============================ */
+saveBtn.addEventListener('click', ()=>{
+  if(!isLoggedIn() || isGuest()){
+    // require login to save changes for demo
+    showSignInModal();
+    return;
+  }
+  const p = loadProfile();
+  p.fullName = fullName.value.trim();
+  p.displayName = displayName.value.trim();
+  p.email = email.value.trim();
+  p.phone = phone.value.trim();
+  p.role = roleSelect.value;
+  p.prefs = { email: !!prefEmail.checked, sms: !!prefSMS.checked, push: !!prefPush.checked };
+  p.privacy = { visible: !!profileVisibility.checked, showContact: !!showContact.checked };
+  p.address = addressInput.value.trim();
+  // password change validation (demo only)
+  const cur = currentPwd.value.trim(), nw = newPwd.value.trim(), conf = confirmPwd.value.trim();
+  if(nw || conf || cur){
+    if(nw.length < 6){ pwdMsg.textContent = 'New password must be at least 6 characters'; pwdMsg.style.color = 'var(--danger)'; return; }
+    if(nw !== conf){ pwdMsg.textContent = 'New password and confirmation do not match'; pwdMsg.style.color = 'var(--danger)'; return; }
+    // In production: call backend to change password (validate current password)
+    pwdMsg.textContent = 'Password change simulated (demo)'; pwdMsg.style.color = 'var(--success)';
+    // clear pwd fields
+    currentPwd.value = ''; newPwd.value = ''; confirmPwd.value = '';
+  } else {
+    pwdMsg.textContent = '';
+  }
+  saveProfile(p);
+  renderProfile();
+  showToast('Profile saved (demo)');
+});
+
+/* Export profile JSON */
+exportBtn.addEventListener('click', ()=>{
+  const p = loadProfile();
+  const blob = new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ukm_profile.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Profile exported');
+});
+
+/* Sign out (demo) */
+signoutBtn.addEventListener('click', ()=>{
+  localStorage.removeItem('ukm_logged_in');
+  localStorage.removeItem('ukm_is_guest');
+  showToast('Signed out (demo)');
+  // optionally redirect to home
+  // window.location.href = 'index.html';
+});
+
+/* Delete account (demo) */
+deleteBtn.addEventListener('click', ()=> {
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+});
+modalCancel.addEventListener('click', ()=> {
+  modalBackdrop.style.display = 'none';
+  modalBackdrop.setAttribute('aria-hidden','true');
+});
+modalConfirm.addEventListener('click', ()=> {
+  // demo: clear profile and sign out
+  localStorage.removeItem('ukm_profile');
+  localStorage.removeItem('ukm_logged_in');
+  localStorage.removeItem('ukm_is_guest');
+  modalBackdrop.style.display = 'none';
+  modalBackdrop.setAttribute('aria-hidden','true');
+  showToast('Account deleted (demo)');
+  // redirect to home
+  // window.location.href = 'index.html';
+});
+
+/* Show sign-in modal for guest actions */
+function showSignInModal(){
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+  document.getElementById('modalTitle').textContent = 'Sign in required';
+  document.getElementById('modalBody').innerHTML = 'Please sign in or register to update your profile.';
+  modalConfirm.style.display = 'none';
+}
+
+/* Close modal when clicking outside */
+modalBackdrop.addEventListener('click', (e)=> { if(e.target === modalBackdrop){ modalBackdrop.style.display='none'; modalBackdrop.setAttribute('aria-hidden','true'); modalConfirm.style.display = 'inline-block'; } });
+
+/* ============================
+   Init
+   ============================ */
+(function init(){
+  // If no profile exists, create from default and optionally prefill from "user session"
+  const p = loadProfile();
+  // Optionally simulate a logged-in user for testing:
+  // localStorage.setItem('ukm_logged_in', JSON.stringify(true));
+  // localStorage.setItem('ukm_is_guest', JSON.stringify(false));
+  // Also optionally prefill some fields for easier testing:
+  // p.fullName = 'Zhang Peigen'; p.displayName = 'Zhang'; p.email = 'zhang@example.com'; saveProfile(p);
+
+  renderProfile();
+
+  // If permission granted previously, attempt to auto-detect address (non-blocking)
+  if(navigator.permissions){
+    navigator.permissions.query({name:'geolocation'}).then(res => { if(res.state === 'granted') detectAddress(); }).catch(()=>{});
+  }
+
+  // data-binding: update summary when inputs change
+  [fullName, displayName, email, phone, roleSelect].forEach(el => el.addEventListener('input', ()=> {
+    summaryRole.textContent = roleSelect.value || '—';
+    summaryEmail.textContent = email.value || '—';
+    summaryPhone.textContent = phone.value || '—';
+  }));
+})();
+</script>
+</body>
+</html>

@@ -1,294 +1,782 @@
 <!doctype html>
 <html lang="zh-Hans">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Login - UKM Students off School Rented System</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login - UKM Students off School Rented System</title>
 
-<style>
-  /* palette & theme adapted from Home page */
-  :root{
-    --bg: #f6f8fb;
-    --card-bg: rgba(255,255,255,0.12); /* base for glass card */
-    --card-border: rgba(255,255,255,0.32);
-    --accent: #1e88ff;
-    --accent-2: #0b3d91;
-    --ink: #071028;
-    --muted: #e6eef9; /* lighter for text on glass */
-    --muted-dark: #6a7480; /* for on-card muted text */
-    --radius:14px;
-    --shadow-lg: 0 20px 60px rgba(7,12,25,0.28);
-    --shadow-sm: 0 8px 26px rgba(8,12,24,0.06);
-    --ease: cubic-bezier(.2,.9,.2,1);
-    --success: #20c997;
-    --danger: #ff6b6b;
-  }
+  <style>
+    :root{
+      --accent: #1e88ff;
+      --accent-2: #0b3d91;
+      --muted-dark: #6a7480;
+      --radius:14px;
+      --ease: cubic-bezier(.2,.9,.2,1);
 
-  /* base: background image + soft white overlay to ensure readability */
-  html,body{
-    height:100%;
-    margin:0;
-    font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial;
-    color:var(--ink);
-    /* Background image (use provided file). overlay gradient provides consistent contrast */
-    background:
-      linear-gradient( rgba(255,255,255,0.72), rgba(255,255,255,0.72) ),
-      url("real-estate-9539531_1920.jpg") center/cover no-repeat fixed;
-    -webkit-font-smoothing:antialiased;
-  }
+      /* 动画节奏控制 */
+      --base-delay: 120ms;
+      --anim-fast: 220ms;
+      --anim-mid: 420ms;
+      --anim-slow: 720ms;
 
-  /* page wrapper centers the card */
-  .page{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:20px;
-    box-sizing:border-box;
-    background-attachment: fixed;
-  }
+      /* 3D倾斜效果参数 */
+      --tilt-rx-mult: 16;
+      --tilt-ry-mult: 28;
+      --tilt-scale: 1.06;
+    }
 
-  /* glassmorphism card */
-  .card {
-    width:420px;
-    max-width:96vw;
-    border-radius:calc(var(--radius) + 6px);
+    /* 尊重用户减少动画的偏好 */
+    @media (prefers-reduced-motion: reduce) {
+      :root { 
+        --anim-fast: 1ms; 
+        --anim-mid: 1ms; 
+        --anim-slow: 1ms; 
+        --tilt-scale: 1; 
+        --tilt-rx-mult: 0; 
+        --tilt-ry-mult: 0; 
+      }
+      * { 
+        animation-duration: 1ms !important; 
+        transition-duration: 1ms !important; 
+      }
+    }
 
-    /* frosted glass */
-    background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06));
-    border: 1px solid var(--card-border);
-    backdrop-filter: blur(12px) saturate(120%);
-    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    /* 基础样式重置 */
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial;
+      color:#071028;
+      -webkit-font-smoothing:antialiased;
+      background:
+        linear-gradient( rgba(255,255,255,0.72), rgba(255,255,255,0.72) ),
+        url("real-estate-9539531_1920.jpg") center/cover no-repeat fixed;
+    }
+    a{color:inherit; text-decoration: none;}
+    .page { 
+      min-height:calc(100vh - 72px); 
+      display:flex; 
+      align-items:center; 
+      justify-content:center; 
+      padding:28px 16px; 
+      box-sizing:border-box; 
+    }
 
-    /* subtle inner highlight + drop shadow */
-    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.06);
-    padding:28px;
-    transition: transform 420ms var(--ease), box-shadow 320ms var(--ease);
-    transform: translateY(6px);
-    overflow:visible;
-  }
-  .card:hover{
-    transform: translateY(0);
-    box-shadow: 0 28px 84px rgba(7,12,25,0.30);
-  }
+    /* 导航栏样式 */
+    .navbar-ios { 
+      background-color:#0a1a2b; 
+      padding:10px 16px; 
+      display:flex; 
+      justify-content:space-between; 
+      align-items:center; 
+      gap:12px; 
+      color:white; 
+      position:sticky; 
+      top:0; 
+      z-index:60; 
+      border-radius:0 0 18px 18px; 
+      box-shadow:0 6px 18px rgba(0,0,0,0.22); 
+      animation: slideDown var(--anim-mid) var(--ease) both; 
+    }
+    @keyframes slideDown { 
+      from { transform:translateY(-120%); opacity:0 } 
+      to { transform:none; opacity:1 } 
+    }
+    .brand-left{ 
+      display:flex; 
+      gap:12px; 
+      align-items:center 
+    }
+    .navbar-brand{ 
+      color:#fff; 
+      font-weight:600; 
+      font-size:18px; 
+      text-decoration:none; 
+      transition:transform 160ms 
+    }
+    .nav-actions{ 
+      display:flex; 
+      gap:10px; 
+      align-items:center 
+    }
+    .btn-ghost{ 
+      background:transparent; 
+      color:#cfe6ff; 
+      padding:8px 12px; 
+      border-radius:10px; 
+      border:1px solid rgba(255,255,255,0.06); 
+      cursor:pointer;
+      transition: background-color 0.2s ease;
+    }
+    .btn-ghost:hover {
+      background-color: rgba(255,255,255,0.08);
+    }
+    .dropdown{ position:relative }
+    .dropdown-toggle{ 
+      color:#fff; 
+      padding:8px 12px; 
+      cursor:pointer; 
+      background:transparent; 
+      border-radius:8px; 
+      border:0;
+      font: inherit;
+    }
+    .dropdown-menu{ 
+      position:absolute; 
+      right:0; 
+      top:calc(100% + 8px); 
+      background:#0a1a2b; 
+      border-radius:10px; 
+      padding:8px; 
+      min-width:160px; 
+      box-shadow:0 8px 30px rgba(2,6,23,0.4); 
+      transform-origin:top center; 
+      opacity:0; 
+      transform:translateY(-8px) scaleY(0.96); 
+      pointer-events:none; 
+      z-index: 100;
+    }
+    .dropdown.open .dropdown-menu{ 
+      animation: dropdownReveal 360ms cubic-bezier(.2,.9,.2,1) both; 
+      pointer-events:auto 
+    }
+    .dropdown-menu.closing{ 
+      animation: dropdownClose 300ms cubic-bezier(.36,0,.66,-0.56) both; 
+      pointer-events:none 
+    }
+    .dropdown-menu a{ 
+      color:#fff; 
+      padding:8px 12px; 
+      display:block; 
+      text-decoration:none; 
+      border-radius:8px;
+      transition: background-color 0.2s ease;
+    }
+    .dropdown-menu a:hover{ 
+      background: rgba(255,255,255,0.06); 
+    }
+    @keyframes dropdownReveal { 
+      0%{ opacity:0; transform:translateY(-12px) scaleY(0.9)} 
+      60%{ opacity:1; transform:translateY(0) scaleY(1.03)} 
+      100%{ transform:none } 
+    }
+    @keyframes dropdownClose { 
+      to { opacity:0; transform:translateY(-12px) scaleY(0.9) } 
+    }
 
-  /* small decorative vignette to increase contrast around card */
-  .card::before{
-    content:"";
-    position:absolute;
-    inset:0;
-    border-radius:calc(var(--radius) + 6px);
-    pointer-events:none;
-    box-shadow: 0 10px 40px rgba(7,12,25,0.06);
-    mix-blend-mode: normal;
-  }
+    /* 登录卡片样式 - 玻璃拟态+3D倾斜 */
+    .card {
+      position:relative;
+      width:460px;
+      max-width:96vw;
+      border-radius:calc(var(--radius) + 6px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+      border:1px solid rgba(255,255,255,0.26);
+      backdrop-filter: blur(14px) saturate(120%);
+      -webkit-backdrop-filter: blur(14px) saturate(120%);
+      box-shadow: 0 28px 80px rgba(7,12,25,0.32), inset 0 1px 0 rgba(255,255,255,0.06);
+      padding:30px;
+      transform: translateY(10px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(var(--s,1));
+      transition: transform var(--anim-mid) var(--ease), box-shadow var(--anim-mid) var(--ease), opacity var(--anim-mid) var(--ease);
+      will-change: transform, opacity;
+      perspective: 2000px;
+    }
+    .card:hover{ 
+      box-shadow: 0 36px 110px rgba(7,12,25,0.36); 
+    }
 
-  /* header / logo */
-  .logo {
-    display:flex;
-    gap:12px;
-    align-items:center;
-    margin-bottom:14px;
-  }
-  .logo .icon{
-    width:56px;height:44px;border-radius:10px;display:grid;place-items:center;
-    background:linear-gradient(135deg,var(--accent),var(--accent-2));
-    color:#fff;font-weight:700;box-shadow:0 10px 30px rgba(14,54,120,0.08);
-    font-size:15px;
-  }
-  .logo .title{font-weight:700;font-size:16px;color:rgba(7,16,36,0.95)}
-  .logo .subtitle{font-size:12px;color:var(--muted-dark);margin-top:2px}
+    /* 装饰性渐变环 */
+    .accent-ring{ 
+      position:absolute; 
+      inset:auto -10px -10px auto; 
+      width:96px;
+      height:96px;
+      border-radius:28px; 
+      background: radial-gradient(circle at 30% 30%, rgba(30,136,255,0.09), transparent 42%); 
+      mix-blend-mode:screen; 
+      pointer-events:none 
+    }
 
-  /* form */
-  form{ display:flex;flex-direction:column; gap:12px; margin-top:6px; }
-  .field {
-    display:flex;flex-direction:column;
-    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-    border-radius:12px;padding:10px;
-    box-shadow: var(--shadow-sm);
-    transition: transform 220ms var(--ease), box-shadow 220ms var(--ease);
-    border:1px solid rgba(255,255,255,0.04);
-    overflow:hidden;
-  }
-  .field:focus-within{
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(8,12,24,0.06);
-    border:1px solid rgba(30,136,255,0.16);
-  }
+    /* 分步入场动画 */
+    .logo{ 
+      display:flex; 
+      gap:12px; 
+      align-items:center; 
+      margin-bottom:16px; 
+      opacity:0; 
+      transform:translateY(-8px); 
+      animation:logoIn var(--anim-mid) var(--ease) both; 
+      animation-delay: calc(var(--base-delay)); 
+    }
+    @keyframes logoIn{ 
+      to { opacity:1; transform:none } 
+    }
+    .logo .icon{ 
+      width:64px;
+      height:50px;
+      border-radius:12px; 
+      display:grid;
+      place-items:center; 
+      background:linear-gradient(135deg,var(--accent),var(--accent-2)); 
+      color:#fff; 
+      font-weight:800; 
+      font-size:16px; 
+      box-shadow:0 12px 34px rgba(14,54,120,0.12) 
+    }
+    .logo .title{ 
+      font-weight:800; 
+      font-size:18px 
+    }
+    .logo .subtitle{ 
+      font-size:13px; 
+      color:var(--muted-dark) 
+    }
 
-  label{ font-size:13px;color:var(--muted-dark); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
-  input[type="email"], input[type="password"]{
-    border:0; outline:0; background:transparent; font-size:15px;
-    padding:6px 2px; color: rgba(2,6,23,0.9);
-  }
-  input::placeholder{ color: rgba(169,177,187,0.95); font-weight:500; }
+    form{ 
+      display:flex; 
+      flex-direction:column; 
+      gap:14px; 
+      margin-top:6px; 
+    }
 
-  .row { display:flex; gap:12px; align-items:center; justify-content:space-between; }
-  .remember { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; font-size:14px; color:var(--muted-dark); }
+    /* 表单字段样式 */
+    .field {
+      display:flex; 
+      flex-direction:column; 
+      padding:12px; 
+      border-radius:12px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      box-shadow: 0 10px 32px rgba(8,12,24,0.06);
+      border:1px solid rgba(255,255,255,0.04);
+      opacity:0; 
+      transform: translateY(12px) scale(0.997);
+      animation: fieldIn var(--anim-mid) var(--ease) both;
+      animation-delay: var(--delay, 0ms);
+      transition: box-shadow var(--anim-fast) var(--ease), transform var(--anim-fast) var(--ease);
+      will-change: transform, box-shadow;
+    }
+    @keyframes fieldIn { 
+      from { opacity:0; transform:translateY(14px) scale(.998); filter: blur(1px) } 
+      to { opacity:1; transform:none; filter:none } 
+    }
 
-  .switch { width:44px;height:26px;border-radius:999px;background:rgba(7,16,38,0.06); position:relative; padding:3px; box-sizing:border-box; transition: background 240ms var(--ease); }
-  .switch .dot { width:20px;height:20px;border-radius:50%; background:white; box-shadow: 0 6px 14px rgba(2,6,23,0.08); transform:translateX(0); transition: transform 260ms var(--ease); }
-  .switch.on{ background: linear-gradient(90deg,var(--accent),var(--accent-2)); }
-  .switch.on .dot{ transform:translateX(18px); }
+    /* 字段聚焦效果 */
+    .field:focus-within {
+      transform: translateY(-2px) scale(1.0004);
+      box-shadow:
+        0 18px 48px rgba(3,37,92,0.12),
+        0 0 0 6px rgba(30,136,255,0.06),
+        0 0 24px rgba(30,136,255,0.06);
+      border:1px solid rgba(30,136,255,0.18);
+    }
+    input, textarea {
+      background:transparent; 
+      border:0; 
+      outline:0; 
+      font-size:15px; 
+      color:rgba(2,6,23,0.95); 
+      padding:6px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input::placeholder{ 
+      color: rgba(169,177,187,0.95); 
+    }
 
-  .btn {
-    margin-top:6px;
-    border:0; outline:0;
-    padding:12px 16px; border-radius:12px; font-size:16px;
-    background: linear-gradient(90deg,var(--accent),var(--accent-2));
-    color:white; font-weight:600; cursor:pointer;
-    box-shadow: 0 10px 26px rgba(14,54,120,0.10);
-    transition: transform 160ms var(--ease), box-shadow 160ms var(--ease), opacity 160ms var(--ease);
-  }
-  .btn:active{ transform:translateY(2px) scale(.998); }
-  .btn[aria-busy="true"]{ opacity:0.85; pointer-events:none; }
+    /* 输入框聚焦样式 */
+    input:focus {
+      box-shadow: 0 6px 18px rgba(14,88,255,0.08), 0 0 0 6px rgba(30,136,255,0.06);
+      border-radius:6px;
+    }
 
-  .alt { margin-top:10px; text-align:center; font-size:13px; color:var(--muted-dark); }
-  .alt a{ color:var(--accent); text-decoration:none; font-weight:600; }
+    /* 行布局 */
+    .row{ 
+      display:flex; 
+      align-items:center; 
+      justify-content:space-between; 
+      gap:12px;
+      opacity:0; 
+      transform: translateY(12px) scale(0.997);
+      animation: fieldIn var(--anim-mid) var(--ease) both;
+      animation-delay: var(--delay, 0ms);
+    }
+    .remember{ 
+      display:flex; 
+      align-items:center; 
+      gap:8px; 
+      cursor:pointer; 
+      color:var(--muted-dark) 
+    }
 
-  .msg { padding:10px 12px;border-radius:10px;font-size:13px; display:none;margin-top:4px; }
-  .msg.show{ display:block; animation: pop 320ms var(--ease); }
-  .msg.error{ background: rgba(255,107,107,0.12); color:var(--danger); border:1px solid rgba(255,107,107,0.12); }
-  .msg.ok{ background: rgba(32,201,151,0.08); color:var(--success); border:1px solid rgba(32,201,151,0.08); }
-  @keyframes pop { from { transform: translateY(-6px) scale(.98); opacity:0 } to { transform: none; opacity:1 } }
+    /* 开关按钮样式 */
+    .switch{ 
+      width:44px;
+      height:26px;
+      border-radius:999px;
+      background:rgba(7,16,38,0.06); 
+      padding:3px; 
+      box-sizing:border-box; 
+      transition: background 220ms;
+      cursor: pointer;
+    }
+    .switch .dot{ 
+      width:20px;
+      height:20px;
+      border-radius:50%; 
+      background:white; 
+      box-shadow:0 6px 14px rgba(2,6,23,0.08); 
+      transition: transform 220ms 
+    }
+    .switch.on{ 
+      background: linear-gradient(90deg,var(--accent),var(--accent-2)) 
+    }
+    .switch.on .dot{ 
+      transform: translateX(18px) 
+    }
 
-  .helper { display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:var(--muted-dark); }
+    /* 提交按钮样式 */
+    .btn {
+      margin-top:6px; 
+      border:0; 
+      padding:12px 18px; 
+      border-radius:12px; 
+      font-size:16px; 
+      font-weight:700;
+      color:#fff; 
+      background: linear-gradient(90deg,var(--accent),var(--accent-2));
+      box-shadow: 0 12px 32px rgba(14,54,120,0.12);
+      transition: transform 220ms var(--ease), box-shadow 220ms var(--ease), opacity 200ms;
+      transform-origin:center;
+      opacity:0; 
+      transform:translateY(10px) scale(.998);
+      animation: btnIn var(--anim-mid) var(--ease) both;
+      animation-delay: calc(var(--base-delay) * 3);
+      cursor: pointer;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 40px rgba(14,54,120,0.18);
+    }
+    @keyframes btnIn { 
+      to { opacity:1; transform:none } 
+    }
 
-  .small { font-size:12px;color:var(--muted-dark); text-align:center; margin-top:10px; }
+    .btn[aria-busy="true"]{ 
+      opacity:0.9; 
+      pointer-events:none; 
+      transform: scale(.995) 
+    }
 
-  /* subtle card backdrop border glow to match accent */
-  .card .accent-ring{
-    position:absolute;
-    pointer-events:none;
-    inset:auto -8px -8px auto;
-    width:80px;height:80px;border-radius:24px;
-    background: radial-gradient(circle at 30% 30%, rgba(30,136,255,0.08), transparent 40%);
-    mix-blend-mode: screen;
-  }
+    /* 提示消息样式 */
+    .msg{ 
+      padding:10px 12px; 
+      border-radius:10px; 
+      font-size:13px; 
+      display:none; 
+      margin-top:6px; 
+    }
+    .msg.show{ 
+      display:block; 
+      animation: pop 220ms var(--ease) both 
+    }
+    .msg.error{ 
+      background: rgba(255,107,107,0.12); 
+      color:#ff6b6b 
+    }
+    .msg.ok{ 
+      background: rgba(32,201,151,0.08); 
+      color:#20c997 
+    }
+    @keyframes pop{ 
+      from { transform:translateY(-8px) scale(.98); opacity:0 } 
+      to { transform:none; opacity:1 } 
+    }
 
-  @media (max-width:420px){
-    .card{ padding:18px; border-radius:12px; width:92vw }
-    .logo .icon{ width:48px;height:40px;border-radius:10px; font-size:13px }
-  }
-</style>
+    /* 辅助文本样式 */
+    .helper { 
+      margin-top:10px; 
+      opacity:0; 
+      transform:translateY(10px); 
+      animation: helperIn var(--anim-mid) var(--ease) both; 
+      animation-delay: calc(var(--base-delay) * 5); 
+    }
+    @keyframes helperIn { 
+      to { opacity:1; transform:none } 
+    }
+
+    /* 成功退出动画 */
+    .exit-up { 
+      animation: exitUp var(--anim-slow) var(--ease) both; 
+    }
+    @keyframes exitUp { 
+      to { transform: translateY(-48px) scale(1.08); opacity:0 } 
+    }
+
+    /* 抖动动画 */
+    @keyframes shakeX { 
+      10%,90%{ transform:translateX(-2px)} 
+      20%,80%{ transform:translateX(4px)} 
+      30%,50%,70%{ transform:translateX(-8px)} 
+      40%,60%{ transform:translateX(8px)} 
+    }
+
+    /* 响应式适配 */
+    @media (max-width:520px) {
+      .card{ 
+        width:92vw; 
+        padding:20px 
+      }
+      .logo .icon{ 
+        width:52px;
+        height:40px 
+      }
+      .navbar-ios {
+        padding: 8px 12px;
+      }
+      .navbar-brand {
+        font-size: 16px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div class="page" role="document">
-    <main class="card" role="main" aria-labelledby="page-title">
+  <!-- 导航栏 -->
+  <header class="navbar-ios">
+    <div class="brand-left">
+      <a class="navbar-brand" href="#">UKM · USSR</a>
+      <div style="color:#a9cfff;font-size:13px">Find trusted off-campus housing</div>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-ghost" onclick="location.href='register.html'">Register</button>
+      <div class="dropdown" id="menuDropdown">
+        <button class="dropdown-toggle" id="menuToggle" aria-haspopup="true" aria-expanded="false">Menu <span class="caret">▾</span></button>
+        <div class="dropdown-menu" id="menuList" role="menu" aria-labelledby="menuToggle">
+          <a href="index.html">Home</a>
+          <a href="property-list.html">Listings</a>
+          <a href="favorites.html">Favourites</a>
+          <a href="login.html">Sign in</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <div class="page">
+    <main class="card" id="card" role="main" aria-labelledby="page-title">
       <div class="accent-ring" aria-hidden="true"></div>
 
-      <header class="logo" aria-hidden="false">
+      <!-- 标题区域 -->
+      <div class="logo" id="logo">
         <div class="icon" aria-hidden="true">UKM</div>
         <div>
           <div class="title" id="page-title">UKM Students off School Rented System</div>
           <div class="subtitle">Sign in to find & manage off-campus housing</div>
         </div>
-      </header>
+      </div>
 
+      <!-- 登录表单 -->
       <form id="loginForm" novalidate>
-        <!-- email -->
-        <div class="field">
+        <div class="field" style="--delay: calc(var(--base-delay) * 1);">
           <label for="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="your@email.com" required autocomplete="email" />
+          <input id="email" name="email" type="email" placeholder="your@email.com" autocomplete="email" required />
         </div>
 
-        <!-- password -->
-        <div class="field">
-          <label for="password">
+        <div class="field" style="--delay: calc(var(--base-delay) * 2);">
+          <label for="password" style="display: flex; justify-content: space-between; align-items: center;">
             <span>Password</span>
-            <a href="forgot.html" id="forgotLink" style="font-size:13px;color:var(--accent);text-decoration:none;">Forgot?</a>
+            <a href="forgot.html" style="font-size:13px;color:var(--accent);text-decoration:none">Forgot?</a>
           </label>
-          <input id="password" name="password" type="password" placeholder="Enter your password" required autocomplete="current-password" />
+          <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
         </div>
 
-        <!-- remember row -->
-        <div class="row">
-          <label class="remember" for="remember">
-            <div id="remember" class="switch" role="checkbox" aria-checked="false" tabindex="0">
-              <div class="dot"></div>
-            </div>
+        <div class="row" style="--delay: calc(var(--base-delay) * 3);">
+          <label class="remember">
+            <div id="remember" class="switch" role="checkbox" aria-checked="false" tabindex="0"><div class="dot"></div></div>
             <span>Remember me</span>
           </label>
-
-          <div style="font-size:13px;color:var(--muted-dark);">Need an account?
-            <a href="register.html" style="color:var(--accent);font-weight:600;text-decoration:none;margin-left:6px;">Register</a>
-          </div>
+          <div style="font-size:13px;color:var(--muted-dark)">Need an account? <a href="register.html" style="color:var(--accent);font-weight:600;text-decoration:none;margin-left:6px;">Register</a></div>
         </div>
 
-        <button type="submit" class="btn" id="submitBtn" aria-busy="false">Sign In</button>
+        <button type="submit" class="btn" id="submitBtn" aria-busy="false" style="--delay: calc(var(--base-delay) * 4);">Sign In</button>
 
         <div id="message" class="msg error" role="alert" aria-live="polite"></div>
 
-        <div class="helper" style="margin-top:10px;">
-          <div class="hint" style="font-size:13px;color:var(--muted-dark)">
+        <div class="helper" style="--delay: calc(var(--base-delay) * 6);">
+          <div style="font-size:13px;color:var(--muted-dark);">
             By signing in you agree to the
-            <a href="terms.html" target="_blank" style="color:var(--accent);text-decoration:none;margin:0 6px">Terms</a>
+            <a href="terms.html" target="_blank" style="color:var(--accent);text-decoration:none;margin:0 6px;">Terms</a>
             and
-            <a href="privacy.html" target="_blank" style="color:var(--accent-2);text-decoration:none;margin-left:6px">Privacy</a>.
+            <a href="privacy.html" target="_blank" style="color:var(--accent-2);text-decoration:none;margin-left:6px;">Privacy</a>.
           </div>
-          <div style="font-size:12px;color:var(--muted-dark)"></div>
         </div>
 
-        <div class="small">If you have trouble signing in, contact support.</div>
+        <div class="helper" style="--delay: calc(var(--base-delay) * 7); margin-top:8px;">
+          <div style="font-size:13px;color:var(--muted-dark);">
+            If you have trouble signing in, contact support.
+          </div>
+        </div>
       </form>
     </main>
   </div>
 
-<script>
-  (function(){
-    const remember = document.getElementById('remember');
-    const submitBtn = document.getElementById('submitBtn');
-    const form = document.getElementById('loginForm');
-    const msg = document.getElementById('message');
+  <script>
+    (function(){
+      // ======================
+      // 导航栏下拉菜单功能
+      // ======================
+      const dropdown = document.getElementById('menuDropdown');
+      const toggle = document.getElementById('menuToggle');
+      const menu = document.getElementById('menuList');
+      let dropdownTimeout = null;
 
-    function toggleRemember(byKeyboard=false){
-      const on = remember.classList.toggle('on');
-      remember.classList.toggle('on', on);
-      remember.setAttribute('aria-checked', on ? 'true' : 'false');
-      remember.animate([{ transform: 'scale(1)' }, { transform: 'scale(0.98)' }, { transform: 'scale(1)'}], { duration: 180, easing: 'ease-out' });
-    }
-    remember.addEventListener('click', ()=> toggleRemember());
-    remember.addEventListener('keydown', (e)=>{
-      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleRemember(true); }
-    });
+      // 打开下拉菜单
+      function openDropdown(){ 
+        dropdown.classList.add('open'); 
+        toggle.setAttribute('aria-expanded','true'); 
+        // 清除关闭定时器
+        if(dropdownTimeout) clearTimeout(dropdownTimeout);
+      }
 
-    function showMessage(text, type='error'){
-      msg.textContent = text;
-      msg.className = 'msg ' + (type === 'error' ? 'error' : 'ok') + ' show';
-      setTimeout(()=> { msg.classList.remove('show'); }, 4200);
-    }
+      // 关闭下拉菜单
+      function closeDropdown(){ 
+        menu.classList.add('closing'); 
+        dropdown.classList.remove('open'); 
+        toggle.setAttribute('aria-expanded','false'); 
+        // 动画结束后移除closing类
+        dropdownTimeout = setTimeout(()=> {
+          menu.classList.remove('closing');
+        }, 300); 
+      }
 
-    form.addEventListener('submit', function(e){
-      e.preventDefault();
-      msg.classList.remove('show');
+      // 切换下拉菜单状态
+      toggle.addEventListener('click', (e)=>{ 
+        e.preventDefault(); 
+        dropdown.classList.contains('open') ? closeDropdown() : openDropdown(); 
+      });
 
-      const email = form.email.value.trim();
-      const password = form.password.value.trim();
+      // 点击外部关闭下拉菜单
+      document.addEventListener('click', (e)=>{ 
+        if(!dropdown.contains(e.target)) closeDropdown(); 
+      });
 
-      if(!email){ showMessage('Please enter your email.'); form.email.focus(); return; }
-      if(!password){ showMessage('Please enter your password.'); form.password.focus(); return; }
+      // 防止点击菜单内部时关闭
+      menu.addEventListener('click', (e)=>{
+        e.stopPropagation();
+      });
 
-      submitBtn.setAttribute('aria-busy','true');
-      submitBtn.textContent = 'Signing in…';
+      // ======================
+      // 动画延迟保障
+      // ======================
+      (function ensureDelays(){
+        const nodes = Array.from(document.querySelectorAll('.logo, .field, .row, .btn, .helper'));
+        nodes.forEach((el, idx)=>{
+          const existing = getComputedStyle(el).getPropertyValue('--delay');
+          if(!existing || existing.trim()==='') {
+            el.style.setProperty('--delay', `calc(var(--base-delay) * ${idx + 1})`);
+          }
+        });
+      })();
 
-      setTimeout(()=>{
-        // demo rule: password length >=6 is success; replace with real API call
-        if(password.length >= 6){
-          showMessage('Signed in successfully — redirecting...', 'ok');
-          submitBtn.textContent = 'Success';
-          // redirect to home (index.html) — adjust to your actual home/dashboard path
-          setTimeout(()=> { window.location.href = 'index.html'; }, 800);
-        } else {
-          showMessage('Invalid credentials. Please check your email and password.');
-          submitBtn.setAttribute('aria-busy','false');
-          submitBtn.textContent = 'Sign In';
-          form.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }], { duration: 420, easing: 'cubic-bezier(.2,.9,.2,1)' });
+      // ======================
+      // 记住我开关功能
+      // ======================
+      const remember = document.getElementById('remember');
+      
+      function toggleRemember(){
+        const on = remember.classList.toggle('on');
+        remember.setAttribute('aria-checked', on ? 'true' : 'false');
+        // 添加微动画
+        remember.animate(
+          [
+            { transform:'scale(1)'},
+            { transform:'scale(.96)'},
+            { transform:'scale(1.02)'},
+            { transform:'scale(1)'}
+          ], 
+          { duration:220, easing:'cubic-bezier(.2,.9,.2,1)'}
+        );
+      }
+
+      // 点击切换
+      remember.addEventListener('click', toggleRemember);
+      
+      // 键盘操作支持
+      remember.addEventListener('keydown', (e)=>{ 
+        if(e.key==='Enter' || e.key===' '){ 
+          e.preventDefault(); 
+          toggleRemember(); 
+        } 
+      });
+
+      // ======================
+      // 消息提示功能
+      // ======================
+      const submitBtn = document.getElementById('submitBtn');
+      const form = document.getElementById('loginForm');
+      const msg = document.getElementById('message');
+      const card = document.getElementById('card');
+
+      // 显示提示消息
+      function showMessage(text, type='error'){
+        msg.textContent = text;
+        msg.className = 'msg ' + (type === 'error' ? 'error' : 'ok') + ' show';
+        
+        // 错误消息添加抖动效果
+        if(type === 'error'){
+          form.animate(
+            [
+              { transform:'translateX(0)' }, 
+              { transform:'translateX(-6px)' }, 
+              { transform:'translateX(6px)' }, 
+              { transform:'translateX(0)' }
+            ], 
+            { duration:420, easing:'cubic-bezier(.2,.9,.2,1)'}
+          );
         }
-      }, 900);
-    });
+        
+        // 自动隐藏消息
+        setTimeout(()=> msg.classList.remove('show'), 4200);
+      }
 
-    window.addEventListener('load', ()=> { document.getElementById('email').focus(); });
-  })();
-</script>
+      // ======================
+      // 表单提交处理
+      // ======================
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        msg.classList.remove('show');
+
+        // 获取表单值
+        const email = form.email.value.trim();
+        const password = form.password.value.trim();
+
+        // 基础验证
+        if(!email){ 
+          showMessage('Please enter your email.'); 
+          form.email.focus(); 
+          return; 
+        }
+        
+        // 邮箱格式验证
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if(!emailRegex.test(email)){
+          showMessage('Please enter a valid email address.');
+          form.email.focus();
+          return;
+        }
+
+        if(!password){ 
+          showMessage('Please enter your password.'); 
+          form.password.focus(); 
+          return; 
+        }
+
+        // 密码长度验证
+        if(password.length < 6){
+          showMessage('Password must be at least 6 characters long.');
+          form.password.focus();
+          return;
+        }
+
+        // 设置提交状态
+        submitBtn.setAttribute('aria-busy','true');
+        submitBtn.textContent = 'Signing in…';
+        
+        // 按钮按下动画
+        submitBtn.animate(
+          [
+            { transform:'scale(1)' }, 
+            { transform:'scale(.996)' }, 
+            { transform:'scale(1)' }
+          ], 
+          { duration:800, easing:'cubic-bezier(.2,.9,.2,1)'}
+        );
+
+        // 模拟API请求延迟
+        setTimeout(()=>{
+          // 模拟登录成功（密码长度>=6）
+          if(password.length >= 6){
+            showMessage('Signed in successfully — redirecting...', 'ok');
+            submitBtn.textContent = 'Success';
+
+            // 卡片退出动画
+            const anim = card.animate(
+              [
+                { transform: getComputedStyle(card).transform, opacity: 1 },
+                { transform: 'translateY(-48px) scale(1.12)', opacity: 0 }
+              ], 
+              {
+                duration: 640,
+                easing: 'cubic-bezier(.2,.9,.2,1)',
+                fill: 'forwards'
+              }
+            );
+
+            // 背景模糊效果
+            document.documentElement.animate(
+              [
+                { filter: 'none' }, 
+                { filter: 'blur(2px) brightness(.92)' }
+              ], 
+              { duration: 640, fill: 'forwards' }
+            );
+
+            // 动画完成后跳转
+            anim.onfinish = () => {
+              window.location.href = 'index.html';
+            };
+          } else {
+            // 登录失败
+            showMessage('Invalid credentials. Please check your email and password.');
+            submitBtn.setAttribute('aria-busy','false');
+            submitBtn.textContent = 'Sign In';
+          }
+        }, 900);
+      });
+
+      // ======================
+      // 3D倾斜效果（仅精细指针设备）
+      // ======================
+      (function enableTilt(){
+        // 检测设备类型和用户偏好
+        const supportsPointer = window.matchMedia('(pointer: fine)').matches;
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        
+        // 不支持则退出
+        if(!supportsPointer || reduceMotion) return;
+
+        // 从CSS变量读取参数
+        const rxMult = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tilt-rx-mult')) || 16;
+        const ryMult = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tilt-ry-mult')) || 28;
+        const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tilt-scale')) || 1.06;
+
+        // 鼠标移动时更新倾斜角度
+        function onMove(e){
+          const rect = card.getBoundingClientRect();
+          const px = (e.clientX - rect.left) / rect.width;
+          const py = (e.clientY - rect.top) / rect.height;
+          const rx = (py - 0.5) * rxMult;
+          const ry = (px - 0.5) * -ryMult;
+          
+          // 设置CSS变量
+          card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+          card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+          card.style.setProperty('--s', scale);
+        }
+
+        // 鼠标离开时重置
+        function onLeave(){
+          card.style.setProperty('--rx', '0deg');
+          card.style.setProperty('--ry', '0deg');
+          card.style.setProperty('--s', '1');
+        }
+
+        // 添加事件监听
+        card.addEventListener('pointermove', onMove, { passive:true });
+        card.addEventListener('pointerleave', onLeave);
+        card.addEventListener('pointercancel', onLeave);
+      })();
+
+    })();
+  </script>
 </body>
 </html>

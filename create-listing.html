@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Create Listing — UKM Students off School Rented System</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card-bg: rgba(255,255,255,0.92);
+    --accent:#1e88ff; --accent-2:#0b3d91;
+    --ink:#071028; --muted:#6a7480;
+    --radius:14px; --shadow:0 18px 40px rgba(7,12,25,0.12);
+    --ease:cubic-bezier(.2,.9,.2,1); --danger:#ff6257;
+  }
+  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial;background:linear-gradient(180deg,#eef3fb,#fff);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{min-height:100vh;padding:18px;box-sizing:border-box;opacity:0;transform:translateY(6px);animation:pageIn 420ms var(--ease) forwards}
+  @keyframes pageIn{to{opacity:1;transform:none}}
+
+  header.appbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:calc(var(--radius)+6px);background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.6));box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:700}
+  nav.actions{display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff}
+  .btn-ghost{background:transparent;border:1px solid rgba(10,16,28,0.06);color:var(--accent-2)}
+
+  main.container{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:14px}
+  @media(max-width:1000px){ main.container{grid-template-columns:1fr} }
+
+  .card{background:var(--card-bg);border-radius:14px;padding:16px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
+  h2{margin:0 0 8px 0}
+
+  form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .full{grid-column:1/-1}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type="text"],input[type="number"],select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(10,16,28,0.06);font-size:14px;background:white;box-sizing:border-box}
+  textarea{min-height:110px;resize:vertical}
+
+  .field{background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.96));padding:10px;border-radius:12px}
+  .role-pills{display:flex;gap:8px}
+  .pill{padding:8px 12px;border-radius:999px;background:rgba(7,16,38,0.04);cursor:pointer;font-weight:700;color:var(--muted)}
+  .pill.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff}
+
+  .uploads{display:flex;gap:12px;flex-wrap:wrap}
+  .u-preview{width:120px;height:88px;border-radius:8px;background:#f6f8fb;border:1px dashed rgba(10,16,28,0.06);display:grid;place-items:center;font-size:12px;color:var(--muted);position:relative;overflow:hidden}
+  .u-preview img{width:100%;height:100%;object-fit:cover;display:block}
+  .u-remove{position:absolute;right:6px;top:6px;background:rgba(255,255,255,0.8);border-radius:8px;padding:4px;font-size:12px;cursor:pointer}
+
+  .small{font-size:13px;color:var(--muted)}
+
+  .actions{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .note{font-size:13px;color:var(--muted);margin-top:8px}
+  .msg{padding:10px;border-radius:10px;font-size:13px;display:none}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:80}
+  .modal{width:min(520px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
+
+  /* subtle animations */
+  .fade-in{animation:fadeIn 360ms var(--ease) forwards}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .disabled{opacity:0.6;pointer-events:none}
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+
+    <header class="appbar">
+      <div class="brand">
+        <div class="logo">UKM</div>
+        <div>
+          <div style="font-weight:700">UKM Students off School Rented System</div>
+          <div style="font-size:12px;color:var(--muted)">Create or edit a listing</div>
+        </div>
+      </div>
+      <nav class="actions">
+        <a href="index.html" class="btn btn-ghost">Home</a>
+        <a href="favorites.html" class="btn btn-ghost">Favourites</a>
+        <a href="login.html" class="btn btn-ghost">Log in</a>
+        <a href="register.html" class="btn btn-ghost">Register</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card fade-in" aria-labelledby="formTitle">
+        <h2 id="formTitle">Create new listing</h2>
+        <p class="small">Fill in details. Landlord and Agent accounts can publish listings. Student accounts cannot.</p>
+
+        <form id="listingForm" class="fade-in" novalidate>
+          <div class="field full">
+            <label>Account role</label>
+            <div class="role-pills" id="rolePills" role="tablist" aria-label="Account role">
+              <div class="pill" data-role="student" tabindex="0">Student</div>
+              <div class="pill" data-role="landlord" tabindex="0">Landlord</div>
+              <div class="pill" data-role="agent" tabindex="0">Agent</div>
+            </div>
+            <div class="small" style="margin-top:8px">Only Landlord or Agent can publish. If you are a Student, switch account first.</div>
+          </div>
+
+          <div class="field full">
+            <label for="title">Title *</label>
+            <input id="title" name="title" type="text" placeholder="e.g. Cozy single room near UKM" required />
+          </div>
+
+          <div class="field">
+            <label for="price">Price (RM) *</label>
+            <input id="price" name="price" type="number" min="0" placeholder="e.g. 450" required />
+          </div>
+
+          <div class="field">
+            <label for="beds">Beds</label>
+            <select id="beds" name="beds">
+              <option value="1">1</option><option value="2">2</option><option value="3">3+</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <label for="area">Area / Location name *</label>
+            <input id="area" name="area" type="text" placeholder="e.g. Taman UKM" required />
+          </div>
+
+          <div class="field full">
+            <label>Address (detected or manual)</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="address" name="address" type="text" placeholder="Full address or description" />
+              <button type="button" id="locBtn" class="btn btn-ghost">Use my location</button>
+            </div>
+            <div id="addrHint" class="small" style="margin-top:6px;color:var(--muted)">If you use location, the system will reverse-resolve a readable address (no map shown).</div>
+          </div>
+
+          <div class="field full">
+            <label for="desc">Description *</label>
+            <textarea id="desc" name="desc" placeholder="Describe the property, rules, nearby transport..."></textarea>
+          </div>
+
+          <!-- role-specific uploads -->
+          <div id="roleUploads" class="full">
+            <!-- injected by JS -->
+          </div>
+
+          <div class="field full">
+            <label>Photos (at least 1) *</label>
+            <div class="uploads" id="photosArea">
+              <div class="u-preview" id="addPhotoBtn" title="Add photos" style="cursor:pointer">＋ Add</div>
+            </div>
+            <div class="small" style="margin-top:8px">JPG/PNG — max 3MB per file. Drag & drop supported.</div>
+          </div>
+
+          <div class="field full">
+            <label>Terms & Privacy</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="agree" type="checkbox" />
+              <label for="agree" style="margin:0">I agree to the <a href="terms.html" target="_blank">Terms</a> and <a href="privacy.html" target="_blank">Privacy</a>.</label>
+            </div>
+          </div>
+
+          <div class="full" style="display:flex;gap:10px;align-items:center">
+            <button id="submitBtn" class="btn btn-primary" type="submit">Publish listing</button>
+            <button id="saveDraft" type="button" class="btn btn-ghost">Save draft</button>
+            <div id="formMsg" class="msg" role="status" aria-live="polite"></div>
+          </div>
+        </form>
+      </section>
+
+      <aside class="card fade-in" aria-label="Sidebar">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Publishing tips</div>
+          <div class="small" style="color:var(--muted)">Guidelines</div>
+        </div>
+        <ul style="margin-top:10px;color:#24303b">
+          <li>Provide clear photos and accurate price.</li>
+          <li>Upload ownership or agency license if asked.</li>
+          <li>Fill address to improve nearby matching to students.</li>
+          <li>Terms acceptance is required to publish.</li>
+        </ul>
+        <div style="margin-top:12px">
+          <div style="font-weight:700">Upload checklist</div>
+          <div class="small" style="margin-top:6px">Photos, Property proof (for landlord), Agency license (for agents).</div>
+        </div>
+      </aside>
+    </main>
+
+    <footer style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;margin-top:12px">© 2025 UKM Students off School Rented System</footer>
+  </div>
+
+  <!-- modal for sign-in requirement -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document">
+      <h3 id="modalTitle">Sign in required</h3>
+      <p id="modalText">You must sign in as a Landlord or Agent to publish a listing. Please sign in or register.</p>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <a href="login.html" class="btn btn-ghost">Sign in</a>
+        <a href="register.html" class="btn btn-primary">Register</a>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------- Demo state: login / guest / role ----------
+   - Real app: should use server-side auth. Here we read localStorage for demo:
+     - ukm_logged_in: boolean
+     - ukm_user_role: 'student' | 'landlord' | 'agent'
+     - ukm_is_guest: boolean
+*/
+function isLoggedIn(){ try{ return !!JSON.parse(localStorage.getItem('ukm_logged_in')); }catch(e){ return false; } }
+function getUserRole(){ try{ return localStorage.getItem('ukm_user_role') || 'student'; }catch(e){ return 'student'; } }
+function isGuest(){ try{ return !!JSON.parse(localStorage.getItem('ukm_is_guest')); }catch(e){ return false; } }
+
+/* ---------- Elements ---------- */
+const rolePills = document.querySelectorAll('.pill');
+const roleUploads = document.getElementById('roleUploads');
+const addPhotoBtn = document.getElementById('addPhotoBtn');
+const photosArea = document.getElementById('photosArea');
+const locBtn = document.getElementById('locBtn');
+const addressInput = document.getElementById('address');
+const form = document.getElementById('listingForm');
+const submitBtn = document.getElementById('submitBtn');
+const formMsg = document.getElementById('formMsg');
+const modalBackdrop = document.getElementById('modalBackdrop');
+
+/* ---------- Initial role handling ---------- */
+let currentRole = getUserRole() || 'student';
+function setRoleUI(role){
+  currentRole = role;
+  rolePills.forEach(p => p.classList.toggle('active', p.getAttribute('data-role') === role));
+  renderRoleUploads(role);
+}
+rolePills.forEach(p => {
+  p.addEventListener('click', ()=> setRoleUI(p.getAttribute('data-role')));
+  p.addEventListener('keydown', (e)=> { if(e.key==='Enter' || e.key===' ') setRoleUI(p.getAttribute('data-role')); });
+});
+// init UI to user's role
+setRoleUI(currentRole);
+
+/* ---------- Role-specific upload UI ---------- */
+function renderRoleUploads(role){
+  // clear
+  roleUploads.innerHTML = '';
+  if(role === 'student'){
+    // students cannot publish — show info only
+    roleUploads.innerHTML = `<div class="field full"><div class="small">Students cannot publish listings. Switch to Landlord or Agent accounts to publish.</div></div>`;
+    return;
+  }
+  if(role === 'landlord'){
+    roleUploads.innerHTML = `
+      <div class="field full">
+        <label>Property proof (PDF / Image) *</label>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input id="propProof" type="file" accept="application/pdf,image/*" style="display:none" />
+          <button type="button" id="btnPropProof" class="btn btn-ghost">Upload property proof</button>
+          <div id="propProofName" class="small" style="margin-left:auto;color:var(--muted)">No file</div>
+        </div>
+      </div>`;
+    // attach handler after injection
+    setTimeout(()=> {
+      const btn = document.getElementById('btnPropProof');
+      const input = document.getElementById('propProof');
+      const label = document.getElementById('propProofName');
+      btn.addEventListener('click', ()=> input.click());
+      input.addEventListener('change', (e)=> {
+        const f = e.target.files[0];
+        if(!f) return;
+        if(f.size > 3*1024*1024){ alert('File too large (max 3MB)'); input.value=''; return; }
+        label.textContent = f.name;
+      });
+    }, 20);
+  }
+  if(role === 'agent'){
+    roleUploads.innerHTML = `
+      <div class="field full">
+        <label>Agency name *</label>
+        <input id="agencyName" type="text" placeholder="Agency name" />
+      </div>
+      <div class="field full">
+        <label>Agency license (PDF / Image) *</label>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input id="agencyLicense" type="file" accept="application/pdf,image/*" style="display:none" />
+          <button type="button" id="btnAgencyLicense" class="btn btn-ghost">Upload license</button>
+          <div id="agencyLicenseName" class="small" style="margin-left:auto;color:var(--muted)">No file</div>
+        </div>
+      </div>`;
+    setTimeout(()=> {
+      const btn = document.getElementById('btnAgencyLicense');
+      const input = document.getElementById('agencyLicense');
+      const label = document.getElementById('agencyLicenseName');
+      btn.addEventListener('click', ()=> input.click());
+      input.addEventListener('change', (e)=> {
+        const f = e.target.files[0];
+        if(!f) return;
+        if(f.size > 3*1024*1024){ alert('File too large (max 3MB)'); input.value=''; return; }
+        label.textContent = f.name;
+      });
+    }, 20);
+  }
+}
+
+/* ---------- Photo uploads (drag-drop + file chooser) ---------- */
+let photoFiles = []; // {file, url}
+function renderPhotos(){
+  // remove existing preview nodes except add button
+  photosArea.querySelectorAll('.u-preview').forEach(n => { if(n !== addPhotoBtn) n.remove(); });
+  photoFiles.forEach((p, idx) => {
+    const div = document.createElement('div');
+    div.className = 'u-preview';
+    div.innerHTML = `<img src="${p.url}" alt="photo ${idx+1}"><div class="u-remove" data-idx="${idx}">✕</div>`;
+    photosArea.insertBefore(div, addPhotoBtn);
+    div.querySelector('.u-remove').addEventListener('click', (e)=>{
+      const i = Number(e.currentTarget.getAttribute('data-idx'));
+      photoFiles.splice(i,1);
+      renderPhotos();
+    });
+  });
+}
+addPhotoBtn.addEventListener('click', ()=> {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept='image/*'; input.multiple = true;
+  input.onchange = (e)=>{
+    const files = Array.from(e.target.files || []);
+    files.forEach(f => addPhotoFile(f));
+  };
+  input.click();
+});
+function addPhotoFile(f){
+  if(!f.type.startsWith('image/')){ alert('Only images allowed'); return; }
+  if(f.size > 3*1024*1024){ alert('Image too large (max 3MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = ()=> {
+    photoFiles.push({ file: f, url: reader.result });
+    renderPhotos();
+  };
+  reader.readAsDataURL(f);
+}
+// drag & drop
+photosArea.addEventListener('dragover', (e)=> { e.preventDefault(); photosArea.style.opacity = .9; });
+photosArea.addEventListener('dragleave', ()=> { photosArea.style.opacity = 1; });
+photosArea.addEventListener('drop', (e)=> {
+  e.preventDefault(); photosArea.style.opacity = 1;
+  const dt = e.dataTransfer;
+  if(!dt) return;
+  const items = Array.from(dt.files || []);
+  items.forEach(f => addPhotoFile(f));
+});
+
+/* ---------- Geolocation + reverse geocoding ---------- */
+async function requestLocationAndAddress(){
+  if(!navigator.geolocation){ alert('Geolocation not supported'); return; }
+  locBtn.textContent = 'Locating…';
+  try{
+    const pos = await new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:12000}));
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    // reverse geocode via Nominatim (demo); for production use server proxy / paid service
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2`);
+    if(!resp.ok) throw new Error('geocode error');
+    const data = await resp.json();
+    addressInput.value = data.display_name || (data.address && (data.address.neighbourhood || data.address.suburb || data.address.city)) || '';
+    document.getElementById('addrHint').textContent = 'Address detected from your location — you can edit it before submit.';
+    locBtn.textContent = 'Use my location (on)';
+  }catch(err){
+    console.warn(err);
+    locBtn.textContent = 'Use my location';
+    document.getElementById('addrHint').textContent = 'Location unavailable or permission denied.';
+  }
+}
+locBtn.addEventListener('click', requestLocationAndAddress);
+
+/* ---------- Guest / Login restriction ---------- */
+function showSignInModal(){
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+}
+modalBackdrop.addEventListener('click', (e)=> { if(e.target === modalBackdrop){ modalBackdrop.style.display='none'; modalBackdrop.setAttribute('aria-hidden','true'); } });
+
+/* ---------- Form validation & submit ---------- */
+form.addEventListener('submit', async (e)=> {
+  e.preventDefault();
+  // check login & role
+  if(!isLoggedIn() || isGuest()){ showSignInModal(); return; }
+  const role = currentRole;
+  if(role === 'student'){ alert('Student accounts cannot publish listings. Switch to landlord or agent.'); return; }
+
+  // basic validation
+  const title = document.getElementById('title').value.trim();
+  const price = Number(document.getElementById('price').value);
+  const area = document.getElementById('area').value.trim();
+  const desc = document.getElementById('desc').value.trim();
+  const agree = document.getElementById('agree').checked;
+
+  if(!title || !price || !area || !desc){ showFormMsg('Please fill required fields (title, price, area, description).', true); return; }
+  if(photoFiles.length < 1){ showFormMsg('Please upload at least one photo.', true); return; }
+  if(!agree){ showFormMsg('You must agree to Terms & Privacy.', true); return; }
+
+  // role-specific checks
+  if(role === 'landlord'){
+    const propProof = document.getElementById('propProof');
+    if(propProof && !propProof.files[0]){ showFormMsg('Please upload property proof (required for landlords).', true); return; }
+  }
+  if(role === 'agent'){
+    const agencyName = document.getElementById('agencyName') ? document.getElementById('agencyName').value.trim() : '';
+    const agencyLicense = document.getElementById('agencyLicense');
+    if(!agencyName || (agencyLicense && !agencyLicense.files[0])){ showFormMsg('Agents must provide agency name and upload license.', true); return; }
+  }
+
+  // prepare FormData (demo)
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('price', price);
+  fd.append('beds', document.getElementById('beds').value);
+  fd.append('area', area);
+  fd.append('address', addressInput.value);
+  fd.append('description', desc);
+  fd.append('role', role);
+  // append photos
+  photoFiles.forEach((p, idx) => fd.append('photos[]', p.file, p.file.name || `photo${idx}.jpg`));
+  // append role files
+  if(role === 'landlord'){
+    const propProof = document.getElementById('propProof').files[0];
+    if(propProof) fd.append('property_proof', propProof, propProof.name);
+  }
+  if(role === 'agent'){
+    const agencyLicense = document.getElementById('agencyLicense').files[0];
+    fd.append('agency_license', agencyLicense, agencyLicense.name);
+    fd.append('agency_name', document.getElementById('agencyName').value.trim());
+  }
+
+  // UI: disable & show loading
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Publishing…';
+
+  try{
+    // DEMO: simulate fetch to server
+    await new Promise(res => setTimeout(res, 1200));
+    // In production, replace with:
+    // const resp = await fetch('/api/listings', { method: 'POST', body: fd, credentials: 'include' });
+    // handle resp.ok / resp.json() etc.
+
+    showFormMsg('Listing published successfully.', false);
+    submitBtn.textContent = 'Published';
+    setTimeout(()=> { submitBtn.disabled = false; submitBtn.textContent = 'Publish listing'; }, 900);
+    // optionally redirect to property page
+    // window.location.href = 'property.html?id=NEW_ID';
+  }catch(err){
+    console.error(err);
+    showFormMsg('Failed to publish. Try again later.', true);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Publish listing';
+  }
+});
+
+function showFormMsg(text, isError=true){
+  formMsg.style.display = 'block';
+  formMsg.textContent = text;
+  formMsg.style.background = isError ? 'rgba(255,98,87,0.08)' : 'rgba(23,201,100,0.08)';
+  formMsg.style.color = isError ? 'var(--danger)' : 'var(--accent-2)';
+  setTimeout(()=> formMsg.style.display = 'none', 4800);
+}
+
+/* ---------- Save draft (local demo) ---------- */
+document.getElementById('saveDraft').addEventListener('click', ()=>{
+  const draft = {
+    role: currentRole,
+    title: document.getElementById('title').value,
+    price: document.getElementById('price').value,
+    beds: document.getElementById('beds').value,
+    area: document.getElementById('area').value,
+    address: addressInput.value,
+    desc: document.getElementById('desc').value,
+    photos: photoFiles.map(p=>p.url)
+  };
+  localStorage.setItem('ukm_listing_draft', JSON.stringify(draft));
+  showFormMsg('Draft saved locally (browser storage).', false);
+});
+
+/* ---------- Accessibility / keyboard niceties ---------- */
+document.addEventListener('keydown', (e)=> {
+  if(e.key === 'Escape'){ modalBackdrop.style.display = 'none'; modalBackdrop.setAttribute('aria-hidden','true'); }
+});
+
+/* ---------- Demo helpers: optionally prefill to test ---------- */
+/* Uncomment to simulate logged-in landlord for local testing:
+localStorage.setItem('ukm_logged_in', JSON.stringify(true));
+localStorage.setItem('ukm_user_role', 'landlord'); // or 'agent'
+localStorage.setItem('ukm_is_guest', JSON.stringify(false));
+setRoleUI(getUserRole());
+*/
+
+// If not logged in or guest, prevent publish button and show modal when clicked
+submitBtn.addEventListener('click', (e)=> {
+  if(!isLoggedIn() || isGuest()){
+    e.preventDefault();
+    showSignInModal();
+  }
+});
+
+/* ---------- End of script ---------- */
+</script>
+</body>
+</html>
