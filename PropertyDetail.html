@@ -1,414 +1,261 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Property — UKM Students off School Rented System</title>
-<style>
-  :root{
-    --bg:#f3f6f9;
-    --card-bg: rgba(255,255,255,0.94);
-    --accent:#1e88ff; --accent-2:#0b3d91;
-    --ink:#041126; --muted:#6b7380;
-    --radius:14px; --shadow:0 18px 40px rgba(7,12,25,0.12);
-    --ease:cubic-bezier(.2,.9,.2,1);
-    --success:#17c964; --danger:#ff6257;
-  }
-  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial;background:linear-gradient(180deg,#eef3fb,#fff);color:var(--ink);-webkit-font-smoothing:antialiased}
-  .page{min-height:100vh;padding:18px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}
-  @keyframes pageIn{to{opacity:1;transform:none}}
-
-  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:calc(var(--radius)+6px);background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.6));box-shadow:var(--shadow);backdrop-filter:blur(8px)}
-  .brand{display:flex;gap:12px;align-items:center}
-  .logo{width:52px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:700}
-  nav.actions{display:flex;gap:8px;align-items:center}
-  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-size:14px}
-  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 10px 28px rgba(11,61,145,0.08)}
-  .btn-ghost{background:transparent;border:1px solid rgba(10,16,28,0.06);color:var(--accent-2)}
-  .tiny{font-size:13px;color:var(--muted)}
-
-  main.layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:14px}
-  @media(max-width:980px){ main.layout{grid-template-columns:1fr} }
-
-  .card{background:var(--card-bg);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}
-  .carousel{position:relative;border-radius:12px;overflow:hidden;height:360px;background:#e9eef7}
-  .carousel img{width:100%;height:100%;object-fit:cover;display:block}
-  .carousel .dots{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;display:flex;gap:8px}
-  .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.6);box-shadow:0 4px 10px rgba(7,12,25,0.12);cursor:pointer}
-  .dot.active{background:var(--accent)}
-
-  .fav-btn{position:absolute;right:12px;top:12px;border-radius:10px;padding:8px;background:rgba(255,255,255,0.8);cursor:pointer;box-shadow:0 8px 20px rgba(7,12,25,0.06)}
-  .share-btn{position:absolute;left:12px;top:12px;border-radius:10px;padding:8px;background:rgba(255,255,255,0.8);cursor:pointer;box-shadow:0 8px 20px rgba(7,12,25,0.06)}
-
-  .meta-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px}
-  .title{font-weight:800;font-size:20px}
-  .price{font-weight:800;color:var(--accent-2)}
-  .tags{display:flex;gap:8px;align-items:center}
-
-  .section{margin-top:12px}
-  .features{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
-  .feature{padding:8px 10px;border-radius:10px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid rgba(10,16,28,0.03);font-size:13px;color:var(--muted)}
-
-  /* host card */
-  .host-card{display:flex;gap:12px;align-items:center}
-  .host-avatar{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800}
-  .host-info{flex:1}
-  .host-actions{display:flex;gap:8px;align-items:center}
-
-  /* responsive image gallery thumbnails */
-  .thumbs{display:flex;gap:8px;margin-top:8px;overflow:auto}
-  .thumbs img{width:84px;height:64px;object-fit:cover;border-radius:8px;border:1px solid rgba(10,16,28,0.03);cursor:pointer}
-
-  .notes{font-size:13px;color:var(--muted);margin-top:8px}
-
-  /* modal */
-  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:90}
-  .modal{width:min(720px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}
-
-  .__toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;padding:8px 14px;border-radius:10px;color:#fff;box-shadow:0 10px 30px rgba(14,54,120,0.12)}
-</style>
-</head>
-<body>
-  <div class="page" role="document">
-    <header class="appbar" role="banner">
-      <div class="brand">
-        <div class="logo">UKM</div>
+<>
+  <meta charSet="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Property — UKM Students off School Rented System</title>
+  <style
+    dangerouslySetInnerHTML={{
+      __html:
+        '\n  :root{\n    --bg:#f3f6f9;\n    --card-bg: rgba(255,255,255,0.94);\n    --accent:#1e88ff; --accent-2:#0b3d91;\n    --ink:#041126; --muted:#6b7380;\n    --radius:14px; --shadow:0 18px 40px rgba(7,12,25,0.12);\n    --ease:cubic-bezier(.2,.9,.2,1);\n    --success:#17c964; --danger:#ff6257;\n  }\n  html,body{height:100%;margin:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial;background:linear-gradient(180deg,#eef3fb,#fff);color:var(--ink);-webkit-font-smoothing:antialiased}\n  .page{min-height:100vh;padding:18px;box-sizing:border-box;opacity:0;transform:translateY(8px);animation:pageIn 420ms var(--ease) forwards}\n  @keyframes pageIn{to{opacity:1;transform:none}}\n\n  header.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:calc(var(--radius)+6px);background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.6));box-shadow:var(--shadow);backdrop-filter:blur(8px)}\n  .brand{display:flex;gap:12px;align-items:center}\n  .logo{width:52px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:700}\n  nav.actions{display:flex;gap:8px;align-items:center}\n  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-size:14px}\n  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 10px 28px rgba(11,61,145,0.08)}\n  .btn-ghost{background:transparent;border:1px solid rgba(10,16,28,0.06);color:var(--accent-2)}\n  .tiny{font-size:13px;color:var(--muted)}\n\n  main.layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:14px}\n  @media(max-width:980px){ main.layout{grid-template-columns:1fr} }\n\n  .card{background:var(--card-bg);border-radius:12px;padding:14px;box-shadow:0 8px 26px rgba(8,12,24,0.06);backdrop-filter:blur(6px)}\n  .carousel{position:relative;border-radius:12px;overflow:hidden;height:360px;background:#e9eef7}\n  .carousel img{width:100%;height:100%;object-fit:cover;display:block}\n  .carousel .dots{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;display:flex;gap:8px}\n  .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.6);box-shadow:0 4px 10px rgba(7,12,25,0.12);cursor:pointer}\n  .dot.active{background:var(--accent)}\n\n  .fav-btn{position:absolute;right:12px;top:12px;border-radius:10px;padding:8px;background:rgba(255,255,255,0.8);cursor:pointer;box-shadow:0 8px 20px rgba(7,12,25,0.06)}\n  .share-btn{position:absolute;left:12px;top:12px;border-radius:10px;padding:8px;background:rgba(255,255,255,0.8);cursor:pointer;box-shadow:0 8px 20px rgba(7,12,25,0.06)}\n\n  .meta-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px}\n  .title{font-weight:800;font-size:20px}\n  .price{font-weight:800;color:var(--accent-2)}\n  .tags{display:flex;gap:8px;align-items:center}\n\n  .section{margin-top:12px}\n  .features{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}\n  .feature{padding:8px 10px;border-radius:10px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid rgba(10,16,28,0.03);font-size:13px;color:var(--muted)}\n\n  /* host card */\n  .host-card{display:flex;gap:12px;align-items:center}\n  .host-avatar{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800}\n  .host-info{flex:1}\n  .host-actions{display:flex;gap:8px;align-items:center}\n\n  /* responsive image gallery thumbnails */\n  .thumbs{display:flex;gap:8px;margin-top:8px;overflow:auto}\n  .thumbs img{width:84px;height:64px;object-fit:cover;border-radius:8px;border:1px solid rgba(10,16,28,0.03);cursor:pointer}\n\n  .notes{font-size:13px;color:var(--muted);margin-top:8px}\n\n  /* modal */\n  .modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.36);display:none;align-items:center;justify-content:center;z-index:90}\n  .modal{width:min(720px,94vw);background:white;border-radius:12px;padding:16px;box-shadow:0 30px 80px rgba(2,6,23,0.28)}\n\n  .__toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;padding:8px 14px;border-radius:10px;color:#fff;box-shadow:0 10px 30px rgba(14,54,120,0.12)}\n'
+    }}
+  />
+  <div className="page" role="document">
+    <header className="appbar" role="banner">
+      <div className="brand">
+        <div className="logo">UKM</div>
         <div>
-          <div style="font-weight:700">UKM Students off School Rented System</div>
-          <div class="tiny">Property details</div>
+          <div style={{ fontWeight: 700 }}>
+            UKM Students off School Rented System
+          </div>
+          <div className="tiny">Property details</div>
         </div>
       </div>
-
-      <nav class="actions" role="navigation">
-        <a href="index.html" class="btn btn-ghost">Home</a>
-        <a href="favorites.html" class="btn btn-ghost">Favourites</a>
-        <a href="host-dashboard.html" class="btn btn-ghost">Dashboard</a>
-        <a href="login.html" class="btn btn-ghost">Log in</a>
+      <nav className="actions" role="navigation">
+        <a href="index.html" className="btn btn-ghost">
+          Home
+        </a>
+        <a href="favorites.html" className="btn btn-ghost">
+          Favourites
+        </a>
+        <a href="host-dashboard.html" className="btn btn-ghost">
+          Dashboard
+        </a>
+        <a href="login.html" className="btn btn-ghost">
+          Log in
+        </a>
       </nav>
     </header>
-
-    <main class="layout" role="main">
-      <!-- left: main content -->
-      <section class="card" aria-labelledby="propTitle">
-        <div class="carousel" id="carousel">
-          <button class="share-btn" id="shareBtn" title="Share">🔗</button>
-          <button class="fav-btn" id="favBtn" title="Add to favourites">♡</button>
-          <!-- images injected by JS -->
-          <div class="dots" id="dots"></div>
+    <main className="layout" role="main">
+      {/* left: main content */}
+      <section className="card" aria-labelledby="propTitle">
+        <div className="carousel" id="carousel">
+          <button className="share-btn" id="shareBtn" title="Share">
+            🔗
+          </button>
+          <button className="fav-btn" id="favBtn" title="Add to favourites">
+            ♡
+          </button>
+          {/* images injected by JS */}
+          <div className="dots" id="dots" />
         </div>
-
-        <div class="meta-row">
+        <div className="meta-row">
           <div>
-            <div class="title" id="pTitle">Studio near UKM - 5 min</div>
-            <div class="tiny" id="pArea">Bangi · Taman UKM</div>
-          </div>
-          <div style="text-align:right">
-            <div class="price" id="pPrice">RM 450 / month</div>
-            <div class="tiny">Deposit: RM 450</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="font-weight:700">Overview</div>
-            <div class="tags">
-              <div class="feature">1 Bed</div><div class="feature">Wi-Fi</div><div class="feature">Furnished</div>
+            <div className="title" id="pTitle">
+              Studio near UKM - 5 min
+            </div>
+            <div className="tiny" id="pArea">
+              Bangi · Taman UKM
             </div>
           </div>
-          <div class="notes" id="pDesc">Cozy studio suitable for UKM students. Close to campus and public transport. Shared kitchen. No pets allowed.</div>
-        </div>
-
-        <div class="section">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="font-weight:700">Amenities</div>
-            <div class="tiny">Listed features</div>
-          </div>
-          <div class="features" id="pFeatures">
-            <!-- filled by JS -->
+          <div style={{ textAlign: "right" }}>
+            <div className="price" id="pPrice">
+              RM 450 / month
+            </div>
+            <div className="tiny">Deposit: RM 450</div>
           </div>
         </div>
-
-        <div class="section">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="font-weight:700">Description & Rules</div>
-            <div class="tiny">House rules</div>
+        <div className="section">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}
+          >
+            <div style={{ fontWeight: 700 }}>Overview</div>
+            <div className="tags">
+              <div className="feature">1 Bed</div>
+              <div className="feature">Wi-Fi</div>
+              <div className="feature">Furnished</div>
+            </div>
           </div>
-          <div class="notes" id="pRules">
-            Quiet hours after 11 PM. No smoking. Keep common areas clean. Guests allowed with notice.
+          <div className="notes" id="pDesc">
+            Cozy studio suitable for UKM students. Close to campus and public
+            transport. Shared kitchen. No pets allowed.
           </div>
         </div>
-
-        <div class="section">
-          <div style="display:flex;gap:12px;align-items:center">
-            <a id="applyBtn" href="student-apply.html" class="btn btn-primary">Apply now</a>
-            <button id="messageHost" class="btn btn-ghost">Message host</button>
-            <button id="reportBtn" class="btn btn-ghost">Report</button>
-            <div style="margin-left:auto" class="tiny">Hosted by <strong id="hostType">Agent</strong></div>
+        <div className="section">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}
+          >
+            <div style={{ fontWeight: 700 }}>Amenities</div>
+            <div className="tiny">Listed features</div>
+          </div>
+          <div className="features" id="pFeatures">
+            {/* filled by JS */}
           </div>
         </div>
-
-        <div class="section">
-          <div style="font-weight:700">Location</div>
-          <div class="tiny" id="currentAddress" style="margin-top:6px">Near UKM Campus, Bangi (detected)</div>
-          <div class="notes">System will prioritize nearby results on the home page — small textual address only (no map).</div>
+        <div className="section">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}
+          >
+            <div style={{ fontWeight: 700 }}>Description &amp; Rules</div>
+            <div className="tiny">House rules</div>
+          </div>
+          <div className="notes" id="pRules">
+            Quiet hours after 11 PM. No smoking. Keep common areas clean. Guests
+            allowed with notice.
+          </div>
         </div>
-
-        <div class="section">
-          <div style="font-weight:700">Images</div>
-          <div class="thumbs" id="thumbs"></div>
+        <div className="section">
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <a
+              id="applyBtn"
+              href="student-apply.html"
+              className="btn btn-primary"
+            >
+              Apply now
+            </a>
+            <button id="messageHost" className="btn btn-ghost">
+              Message host
+            </button>
+            <button id="reportBtn" className="btn btn-ghost">
+              Report
+            </button>
+            <div style={{ marginLeft: "auto" }} className="tiny">
+              Hosted by <strong id="hostType">Agent</strong>
+            </div>
+          </div>
+        </div>
+        <div className="section">
+          <div style={{ fontWeight: 700 }}>Location</div>
+          <div className="tiny" id="currentAddress" style={{ marginTop: 6 }}>
+            Near UKM Campus, Bangi (detected)
+          </div>
+          <div className="notes">
+            System will prioritize nearby results on the home page — small
+            textual address only (no map).
+          </div>
+        </div>
+        <div className="section">
+          <div style={{ fontWeight: 700 }}>Images</div>
+          <div className="thumbs" id="thumbs" />
         </div>
       </section>
-
-      <!-- right: host / details -->
-      <aside class="card" aria-labelledby="hostTitle">
+      {/* right: host / details */}
+      <aside className="card" aria-labelledby="hostTitle">
         <h3 id="hostTitle">Host information</h3>
-        <div style="margin-top:8px" class="host-card">
-          <div class="host-avatar" id="hostAvatar">AG</div>
-          <div class="host-info">
-            <div style="font-weight:800" id="hostName">BlueHome Agency</div>
-            <div class="tiny" id="hostContact">Agent · bluehome@example.com</div>
-            <div class="tiny" id="hostSince">Member since 2024</div>
+        <div style={{ marginTop: 8 }} className="host-card">
+          <div className="host-avatar" id="hostAvatar">
+            AG
+          </div>
+          <div className="host-info">
+            <div style={{ fontWeight: 800 }} id="hostName">
+              BlueHome Agency
+            </div>
+            <div className="tiny" id="hostContact">
+              Agent · bluehome@example.com
+            </div>
+            <div className="tiny" id="hostSince">
+              Member since 2024
+            </div>
           </div>
         </div>
-
-        <div style="margin-top:12px" class="host-actions">
-          <a id="hostDashboardLink" href="agent-dashboard.html" class="btn btn-ghost">Agent Dashboard</a>
-          <a id="viewOtherProps" href="index.html" class="btn btn-ghost">View more by host</a>
+        <div style={{ marginTop: 12 }} className="host-actions">
+          <a
+            id="hostDashboardLink"
+            href="agent-dashboard.html"
+            className="btn btn-ghost"
+          >
+            Agent Dashboard
+          </a>
+          <a id="viewOtherProps" href="index.html" className="btn btn-ghost">
+            View more by host
+          </a>
         </div>
-
-        <div style="margin-top:12px">
-          <div style="font-weight:700">Policies</div>
-          <div class="tiny" style="margin-top:6px">Security deposit and tenancy rules are provided in the contract. See <a href="contract-viewer.html">Contract</a> for templates.</div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontWeight: 700 }}>Policies</div>
+          <div className="tiny" style={{ marginTop: 6 }}>
+            Security deposit and tenancy rules are provided in the contract. See{" "}
+            <a href="contract-viewer.html">Contract</a> for templates.
+          </div>
         </div>
-
-        <div style="margin-top:12px">
-          <div style="font-weight:700">Quick stats</div>
-          <div class="tiny" style="margin-top:6px">Views: <strong id="viewsCount">124</strong> · Applications: <strong id="appsCount">3</strong></div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontWeight: 700 }}>Quick stats</div>
+          <div className="tiny" style={{ marginTop: 6 }}>
+            Views: <strong id="viewsCount">124</strong> · Applications:{" "}
+            <strong id="appsCount">3</strong>
+          </div>
         </div>
-
-        <div style="margin-top:12px;color:var(--muted);font-size:13px">
-          <div>Share: <button id="shareLink" class="btn btn-ghost">Copy link</button></div>
+        <div style={{ marginTop: 12, color: "var(--muted)", fontSize: 13 }}>
+          <div>
+            Share:{" "}
+            <button id="shareLink" className="btn btn-ghost">
+              Copy link
+            </button>
+          </div>
         </div>
       </aside>
     </main>
-
-    <footer style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;margin-top:12px">© 2025 UKM Students off School Rented System</footer>
+    <footer
+      style={{
+        textAlign: "center",
+        color: "var(--muted)",
+        fontSize: 13,
+        padding: "12px 0",
+        marginTop: 12
+      }}
+    >
+      © 2025 UKM Students off School Rented System
+    </footer>
   </div>
-
-  <!-- report modal -->
-  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal">
+  {/* report modal */}
+  <div
+    className="modal-backdrop"
+    id="modalBackdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+  >
+    <div className="modal">
       <h3>Report property</h3>
-      <p>Please briefly explain the issue. The report will be sent to platform admin for review.</p>
-      <textarea id="reportText" style="width:100%;height:120px;padding:8px;border-radius:8px;border:1px solid rgba(10,16,28,0.06)"></textarea>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-        <button id="cancelReport" class="btn btn-ghost">Cancel</button>
-        <button id="sendReport" class="btn btn-primary">Send report</button>
+      <p>
+        Please briefly explain the issue. The report will be sent to platform
+        admin for review.
+      </p>
+      <textarea
+        id="reportText"
+        style={{
+          width: "100%",
+          height: 120,
+          padding: 8,
+          borderRadius: 8,
+          border: "1px solid rgba(10,16,28,0.06)"
+        }}
+        defaultValue={""}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 8,
+          marginTop: 12
+        }}
+      >
+        <button id="cancelReport" className="btn btn-ghost">
+          Cancel
+        </button>
+        <button id="sendReport" className="btn btn-primary">
+          Send report
+        </button>
       </div>
     </div>
   </div>
-
-<script>
-/* Demo property data (replace with API) */
-const property = {
-  id: 101,
-  title: "Studio near UKM - 5 min",
-  area: "Bangi · Taman UKM",
-  price: 450,
-  deposit: 450,
-  beds: 1,
-  desc: "Cozy studio suitable for UKM students. Close to campus and public transport. Shared kitchen. No pets allowed.",
-  features: ["Wi-Fi", "Furnished", "Washing machine", "Study desk", "Hot water"],
-  rules: "Quiet hours after 11 PM. No smoking. Keep common areas clean. Guests allowed with notice.",
-  images: [
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=60",
-    "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=60",
-    "https://images.unsplash.com/photo-1600585153762-2a4f0f7e5931?auto=format&fit=crop&w=1200&q=60"
-  ],
-  host: { type: "Agent", name: "BlueHome Agency", contact: "bluehome@example.com", since: "2024" },
-  stats: { views: 124, applications: 3 }
-};
-
-/* DOM refs */
-const carousel = document.getElementById('carousel');
-const dots = document.getElementById('dots');
-const pTitle = document.getElementById('pTitle');
-const pArea = document.getElementById('pArea');
-const pPrice = document.getElementById('pPrice');
-const pDesc = document.getElementById('pDesc');
-const pFeatures = document.getElementById('pFeatures');
-const pRules = document.getElementById('pRules');
-const thumbs = document.getElementById('thumbs');
-const applyBtn = document.getElementById('applyBtn');
-const favBtn = document.getElementById('favBtn');
-const shareBtn = document.getElementById('shareBtn');
-const shareLink = document.getElementById('shareLink');
-const hostType = document.getElementById('hostType');
-const hostAvatar = document.getElementById('hostAvatar');
-const hostName = document.getElementById('hostName');
-const hostContact = document.getElementById('hostContact');
-const hostSince = document.getElementById('hostSince');
-const viewsCount = document.getElementById('viewsCount');
-const appsCount = document.getElementById('appsCount');
-
-const modalBackdrop = document.getElementById('modalBackdrop');
-const cancelReport = document.getElementById('cancelReport');
-const sendReport = document.getElementById('sendReport');
-const reportText = document.getElementById('reportText');
-
-/* toast */
-let toastTimer = null;
-function showToast(text, bg='linear-gradient(90deg,var(--accent),var(--accent-2))'){
-  let el = document.querySelector('.__toast');
-  if(!el){ el = document.createElement('div'); el.className='__toast'; document.body.appendChild(el); }
-  el.style.background = bg; el.textContent = text; el.style.opacity = '1';
-  if(toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=> el.style.opacity = '0', 3000);
-}
-
-/* render property */
-function renderProperty(){
-  pTitle.textContent = property.title;
-  pArea.textContent = property.area;
-  pPrice.textContent = `RM ${property.price} / month`;
-  pDesc.textContent = property.desc;
-  pRules.textContent = property.rules;
-  pFeatures.innerHTML = '';
-  property.features.forEach(f => {
-    const el = document.createElement('div'); el.className='feature'; el.textContent = f;
-    pFeatures.appendChild(el);
-  });
-  hostType.textContent = property.host.type;
-  hostAvatar.textContent = property.host.name.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
-  hostName.textContent = property.host.name;
-  hostContact.textContent = `${property.host.type} · ${property.host.contact}`;
-  hostSince.textContent = `Member since ${property.host.since}`;
-  viewsCount.textContent = property.stats.views;
-  appsCount.textContent = property.stats.applications;
-
-  // carousel images
-  const imgWrap = document.createElement('div');
-  imgWrap.style.height='100%';
-  imgWrap.style.width='100%';
-  imgWrap.style.position='absolute';
-  imgWrap.style.inset='0';
-  carousel.insertBefore(imgWrap, dots);
-
-  property.images.forEach((src, idx) => {
-    const img = document.createElement('img');
-    img.src = src;
-    img.alt = `image ${idx+1}`;
-    img.style.position = 'absolute';
-    img.style.inset = '0';
-    img.style.opacity = '0';
-    img.style.transition = 'opacity 360ms var(--ease)';
-    imgWrap.appendChild(img);
-
-    const dot = document.createElement('div'); dot.className='dot'; dot.setAttribute('data-idx', idx);
-    dot.addEventListener('click', ()=> showSlide(idx));
-    dots.appendChild(dot);
-
-    // thumbnails
-    const t = document.createElement('img'); t.src = src; t.alt='thumb'; t.addEventListener('click', ()=> showSlide(idx));
-    thumbs.appendChild(t);
-  });
-
-  showSlide(0);
-}
-
-/* carousel logic */
-let currentSlide = 0;
-function showSlide(n){
-  const imgs = carousel.querySelectorAll('img');
-  const d = dots.querySelectorAll('.dot');
-  imgs.forEach((img, i)=> img.style.opacity = (i===n ? '1' : '0'));
-  d.forEach((dot, i)=> dot.classList.toggle('active', i===n));
-  currentSlide = n;
-}
-let slideInterval = null;
-function startAutoSlide(){
-  slideInterval = setInterval(()=> {
-    const next = (currentSlide + 1) % property.images.length;
-    showSlide(next);
-  }, 4500);
-}
-function stopAutoSlide(){ if(slideInterval) clearInterval(slideInterval); slideInterval = null; }
-
-/* favorites */
-function toggleFav(){
-  const key = `fav_prop_${property.id}`;
-  const cur = localStorage.getItem(key);
-  if(cur){ localStorage.removeItem(key); favBtn.textContent = '♡'; showToast('Removed from favourites'); }
-  else { localStorage.setItem(key, '1'); favBtn.textContent = '♥'; showToast('Added to favourites'); }
-}
-favBtn.addEventListener('click', ()=> { toggleFav(); });
-
-/* share */
-shareBtn.addEventListener('click', async ()=>{
-  const url = location.href;
-  if(navigator.share){
-    try{ await navigator.share({ title: property.title, text: property.desc, url }); showToast('Shared'); return; }catch(e){}
-  }
-  // fallback: copy link
-  try{ await navigator.clipboard.writeText(url); showToast('Link copied'); }catch(e){ showToast('Copy failed', 'linear-gradient(90deg,var(--danger),#ff8b8b)'); }
-});
-shareLink.addEventListener('click', async ()=> { try{ await navigator.clipboard.writeText(location.href); showToast('Link copied to clipboard'); }catch(e){ showToast('Copy failed'); } });
-
-/* message host */
-document.getElementById('messageHost').addEventListener('click', ()=>{
-  // open messages and start new conversation — deep linking could be used
-  window.location.href = 'messages.html';
-});
-
-/* report modal */
-document.getElementById('reportBtn').addEventListener('click', ()=>{
-  modalBackdrop.style.display = 'flex';
-  modalBackdrop.setAttribute('aria-hidden','false');
-});
-cancelReport.addEventListener('click', ()=> {
-  modalBackdrop.style.display = 'none';
-  modalBackdrop.setAttribute('aria-hidden','true');
-  reportText.value = '';
-});
-sendReport.addEventListener('click', ()=> {
-  const txt = reportText.value.trim();
-  if(!txt){ alert('Please describe the issue'); return; }
-  // demo: send report to admin (mock)
-  modalBackdrop.style.display = 'none';
-  modalBackdrop.setAttribute('aria-hidden','true');
-  reportText.value = '';
-  showToast('Report submitted. Admin will review.');
-});
-
-/* apply redirect — include property id as query so student-apply could prefill if desired */
-applyBtn.addEventListener('click', (e)=> {
-  // append property id to apply page
-  const href = `student-apply.html?propertyId=${property.id}`;
-  e.currentTarget.setAttribute('href', href);
-});
-
-/* init */
-(function init(){
-  renderProperty();
-  startAutoSlide();
-  // mark fav button initial state
-  if(localStorage.getItem(`fav_prop_${property.id}`)) favBtn.textContent='♥'; else favBtn.textContent='♡';
-  // attempt to detect address (non-blocking) - for display only
-  // (we do not show a map)
-  if(navigator.geolocation){
-    navigator.permissions && navigator.permissions.query({name:'geolocation'}).then(res => {
-      if(res.state === 'granted'){
-        navigator.geolocation.getCurrentPosition(pos => {
-          // reverse geocode (Nominatim) — optional live call
-          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=jsonv2`)
-            .then(r => r.ok ? r.json() : Promise.reject()).then(data => {
-              document.getElementById('currentAddress').textContent = data.display_name || property.area;
-            }).catch(()=>{});
-        }, ()=>{});
-      }
-    }).catch(()=>{});
-  }
-})();
-</script>
-</body>
-</html>
+</>
