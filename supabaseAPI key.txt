@@ -1,0 +1,14 @@
+URL：
+https://tqeobopxnjywbktyxfhb.supabase.co
+
+APIkey：（匿名API密钥）eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxZW9ib3B4bmp5d2JrdHl4ZmhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyMDE2MjYsImV4cCI6MjA4MDc3NzYyNn0.uVoVjH-xfNv2HNES7onzNpcpAWlbsHzYnn9jGnCZzzg
+
+survice API key：
+（mcp用的是这个）eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxZW9ib3B4bmp5d2JrdHl4ZmhiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTIwMTYyNiwiZXhwIjoyMDgwNzc3NjI2fQ.Skkg-UeE9xI_FzmYXdBuHKFrHRDSwQwKeSNNnn4dBQM
+
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://tqeobopxnjywbktyxfhb.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
