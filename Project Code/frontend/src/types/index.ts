@@ -20,7 +20,7 @@ export interface PropertyStats {
 }
 
 export interface Property {
-  id: number;
+  id: string;
   title: string;
   area: string;
   address?: string;
@@ -54,7 +54,7 @@ export interface LocationState {
 
 export interface Application {
   id: number;
-  propertyId: number;
+  propertyId: string;
   propertyTitle: string;
   applicant: string;
   studentId: string;

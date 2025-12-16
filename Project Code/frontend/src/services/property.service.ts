@@ -120,6 +120,64 @@ export const PropertyService = {
         }
 
         return transformRowToProperty({ ...row, profiles: profile });
+    },
+
+    getFavorites: async (userId: string): Promise<Property[]> => {
+        const { data, error } = await supabase
+            .from('favorites')
+            .select(`
+                created_at,
+                property:properties (
+                    *,
+                    property_images ( image_url, is_cover, order_index )
+                )
+            `)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching favorites:', error);
+            throw new Error(error.message);
+        }
+
+        if (!data) return [];
+
+        return data.map((row: any) => {
+             const prop = row.property;
+             if (!prop) return null;
+             // We don't fetch host info for favorites list to keep it fast
+             return transformRowToProperty(prop);
+        }).filter(Boolean) as Property[];
+    },
+
+    addToFavorites: async (userId: string, propertyId: string) => {
+        const { error } = await supabase
+            .from('favorites')
+            .insert({ user_id: userId, property_id: propertyId });
+        if (error) throw error;
+    },
+
+    removeFromFavorites: async (userId: string, propertyId: string) => {
+        const { error } = await supabase
+            .from('favorites')
+            .delete()
+            .eq('user_id', userId)
+            .eq('property_id', propertyId);
+        if (error) throw error;
+    },
+
+    isFavorite: async (userId: string, propertyId: string): Promise<boolean> => {
+        const { data, error } = await supabase
+            .from('favorites')
+            .select('property_id')
+            .eq('user_id', userId)
+            .eq('property_id', propertyId)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "The result contains 0 rows"
+             console.error('Error checking favorite:', error);
+        }
+        return !!data;
     }
 };
 

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Property } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { PropertyService } from '../../services/property.service';
 // import clsx from 'clsx'; // Unused
 
 interface PropertyCardProps {
@@ -21,7 +22,50 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 
         : '';
 
     const isNearby = property.distance !== undefined && property.distance <= 1.2;
-    const [liked, setLiked] = React.useState(false);
+    const [liked, setLiked] = useState(false);
+    const [toggling, setToggling] = useState(false);
+
+    useEffect(() => {
+        const checkFavorite = async () => {
+            if (user && property.id) {
+                try {
+                    const isFav = await PropertyService.isFavorite(user.id, property.id);
+                    setLiked(isFav);
+                } catch (err) {
+                    console.error('Error checking favorite status:', err);
+                }
+            }
+        };
+        checkFavorite();
+    }, [user, property.id]);
+
+    const handleToggleFavorite = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!user) {
+            alert("Please log in to add favorites.");
+            return;
+        }
+
+        if (toggling) return;
+
+        setToggling(true);
+        try {
+            if (liked) {
+                await PropertyService.removeFromFavorites(user.id, property.id);
+                setLiked(false);
+            } else {
+                await PropertyService.addToFavorites(user.id, property.id);
+                setLiked(true);
+            }
+        } catch (err) {
+            console.error('Error toggling favorite:', err);
+            alert('Failed to update favorite status');
+        } finally {
+            setToggling(false);
+        }
+    };
 
     // Animation delay style
     const style = {
@@ -54,16 +98,17 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 
 
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
                         {/* Heart button */}
-                        {/* Heart button */}
                         <button
                             className="heart"
-                            title="Add to favourites"
-                            aria-label="Add to favourites"
-                            onClick={(e) => {
-                                e.preventDefault(); // Prevent navigating if inside Link
-                                setLiked(!liked);
+                            title={liked ? "Remove from favourites" : "Add to favourites"}
+                            aria-label={liked ? "Remove from favourites" : "Add to favourites"}
+                            onClick={handleToggleFavorite}
+                            disabled={toggling}
+                            style={{ 
+                                color: liked ? 'red' : 'inherit',
+                                opacity: toggling ? 0.5 : 1,
+                                cursor: toggling ? 'not-allowed' : 'pointer'
                             }}
-                            style={{ color: liked ? 'red' : 'inherit' }}
                         >
                             {liked ? '♥' : '♡'}
                         </button>
