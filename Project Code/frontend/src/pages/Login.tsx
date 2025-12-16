@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+console.log("Supabase Key:", import.meta.env.VITE_SUPABASE_ANON_KEY);import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { Logo } from '../components/Common/Logo';
@@ -46,27 +47,47 @@ export const Login: React.FC = () => {
         };
     }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setMsg(null);
-        if (!email) return setMsg({ text: 'Please enter your email.', error: true });
-        if (!password) return setMsg({ text: 'Please enter your password.', error: true });
-
-        setLoading(true);
-        try {
-            await login({ email, password });
-            setMsg({ text: 'Signed in successfully — redirecting...', error: false });
-            if (cardRef.current) {
-                cardRef.current.style.animation = 'exitUp 700ms cubic-bezier(.2,.9,.2,1) both';
-            }
-            setTimeout(() => {
-                navigate('/');
-            }, 700);
-        } catch (err: any) {
-            setMsg({ text: err?.message || 'Login failed.', error: true });
-            setLoading(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    
+    // 注意：我们将 setLoading(true) 放在 try 之前或刚开始，
+    // 具体取决于你是否希望校验过程也显示 loading 状态。
+    // 这里为了体验，通常校验很快，不需要 loading，但在统一 catch 中我们需要确保 loading 被关闭。
+    
+    try {
+        // 1. 【新增 throw】手动抛出校验错误
+        if (!email) {
+            throw new Error('Please enter your email.');
         }
-    };
+        if (!password) {
+            throw new Error('Please enter your password.');
+        }
+
+        setLoading(true); // 校验通过后开启 Loading
+
+        // 2. 发起请求 (login 内部如果失败也会 throw，被下面的 catch 捕获)
+        await login({ email, password });
+
+        // 3. 成功逻辑
+        setMsg({ text: 'Signed in successfully — redirecting...', error: false });
+        
+        if (cardRef.current) {
+            cardRef.current.style.animation = 'exitUp 500ms cubic-bezier(.2,.9,.2,1) both';
+        }
+        
+        setTimeout(() => {
+            navigate('/');
+        }, 500);
+        
+    } catch (err: any) {
+        // 4. 【统一捕获】无论是上面的校验错误，还是 login() 的 API 错误，都在这里处理
+        const errorMessage = err instanceof Error ? err.message : 'Login failed.';
+        
+        setMsg({ text: errorMessage, error: true });
+        setLoading(false); // 确保无论哪种错误都关闭 loading
+    }
+};
 
 
 
@@ -75,13 +96,45 @@ export const Login: React.FC = () => {
             <main className="auth-card" ref={cardRef} role="main" aria-labelledby="page-title">
                 <div className="accent-ring" aria-hidden="true" style={{ position: 'absolute', inset: 'auto -10px -10px auto', width: 96, height: 96, borderRadius: 28, background: 'radial-gradient(circle at 30% 30%, rgba(30,136,255,0.09), transparent 42%)', mixBlendMode: 'screen', pointerEvents: 'none' }}></div>
 
-                <Logo
-                    style={{
-                        marginBottom: '28px',
-                        animation: 'logoIn 420ms cubic-bezier(.2,.9,.2,1) both',
-                        animationDelay: '120ms'
-                    }}
-                />
+              
+
+<div
+  style={{
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '14px',
+    marginBottom: '28px',
+    animation: 'logoIn 420ms cubic-bezier(.2,.9,.2,1) both',
+    animationDelay: '120ms'
+  }}
+>
+  <Logo />
+
+  <div>
+    <div
+      id="page-title"
+      style={{
+        fontWeight: 800,
+        fontSize: '18px',
+        lineHeight: '1.2',
+        color: 'var(--text)'
+      }}
+    >
+      UKM Students off School Rented System
+    </div>
+
+    <div
+      style={{
+        fontSize: '13px',
+        color: 'var(--muted-dark)',
+        marginTop: '2px'
+      }}
+    >
+      Sign in to find & manage off-campus housing
+    </div>
+  </div>
+</div>
+
 
                 <form onSubmit={handleSubmit} noValidate>
                     <div className="auth-field" style={{ animation: 'fieldIn 420ms cubic-bezier(.2,.9,.2,1) both', animationDelay: '120ms' }}>

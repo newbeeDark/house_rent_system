@@ -5,6 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+console.log("调试 URL:", supabaseUrl);
+console.log("调试 Key:", supabaseAnonKey);
+
 if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Missing Supabase URL or Anon Key. Please check your .env file.');
 }
@@ -12,5 +15,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(
     supabaseUrl || '',
-    supabaseAnonKey || ''
+    supabaseAnonKey || '',
+    {
+        auth: {
+            storage: sessionStorage, // 使用 sessionStorage 替代 localStorage，实现“页面关闭即失效”
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true
+        }
+    }
 );

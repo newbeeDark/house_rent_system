@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Layout/Navbar';
 import { runSupabaseSchemaCheck } from '../services/supabaseSchemaCheck';
-import { fetchAnyUser, uploadAvatar } from '../services/profile.service';
+import { getUserProfile, uploadAvatar } from '../services/profile.service';
 
 interface Doc {
     name: string;
@@ -14,7 +14,27 @@ interface Doc {
 export const Profile: React.FC = () => {
     const { user } = useAuth(); // simplistic access
     const navigate = useNavigate();
-
+// ✅ 新增：加载用户数据的 Effect
+    useEffect(() => {
+        async function loadData() {
+            if (!user?.id) return;
+            
+            const data = await getUserProfile(user.id);
+            if (data) {
+                // 将数据库里的数据填充到表单里
+                setFullName(data.full_name || '');
+                setDisplayName(data.full_name || ''); // 假设显示名也是全名
+                setPhone(data.phone || '');
+                setRole(data.role as any || 'student');
+                setStudentId(data.student_id || '');
+                setAgencyName(data.agency_name || '');
+                setAgencyLicense(data.agency_license || '');
+                setIsVerified(data.is_verified || false);
+                // 如果有头像 state 也要在这里设置
+            }
+        }
+        loadData();
+    }, [user?.id]); // 依赖 user.id 变化时重新加载
     // Local form state
     const [fullName, setFullName] = useState(user?.name || '');
     const [displayName, setDisplayName] = useState(user?.name || '');
@@ -67,21 +87,23 @@ export const Profile: React.FC = () => {
 
     useEffect(() => {
         (async () => {
-            const dbu = await fetchAnyUser();
-            if (dbu) {
-                setFullName(dbu.full_name || '');
-                setPhone(dbu.phone || '');
-                if (dbu.role === 'agent' || dbu.role === 'landlord' || dbu.role === 'student') {
-                    setRole(dbu.role as any);
+            if (user?.id) {
+                const dbu = await getUserProfile(user.id);
+                if (dbu) {
+                    setFullName(dbu.full_name || '');
+                    setPhone(dbu.phone || '');
+                    if (dbu.role === 'agent' || dbu.role === 'landlord' || dbu.role === 'student') {
+                        setRole(dbu.role as any);
+                    }
+                    setStudentId(dbu.student_id || '');
+                    setAgencyName(dbu.agency_name || '');
+                    setAgencyLicense(dbu.agency_license || '');
+                    setIsVerified(!!dbu.is_verified);
+                    setAvatarUrl(dbu.avatar_url || null);
                 }
-                setStudentId(dbu.student_id || '');
-                setAgencyName(dbu.agency_name || '');
-                setAgencyLicense(dbu.agency_license || '');
-                setIsVerified(!!dbu.is_verified);
-                setAvatarUrl(dbu.avatar_url || null);
             }
         })();
-    }, []);
+    }, [user]);
     const showToastMsg = (text: string, error = false) => {
         setToast({ text, bg: error ? 'linear-gradient(90deg,var(--danger),#ff8b8b)' : 'linear-gradient(90deg,var(--accent),var(--accent-2))' });
         setTimeout(() => setToast(null), 3000);
@@ -251,12 +273,6 @@ export const Profile: React.FC = () => {
                                 </div>
                             </div>
                         )}
-
-                        
-
-                        
-
-                        
 
                         
 

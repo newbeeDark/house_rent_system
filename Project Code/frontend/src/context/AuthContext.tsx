@@ -141,9 +141,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const logout = async () => {
-        await supabase.auth.signOut();
-        setUser(null);
+   // 在 src/context/AuthContext.tsx 中找到 logout 函数
+
+        const logout = async () => {
+        try {
+            // 1. 尝试通知服务器退出 (但这步可能会慢，或者出错)
+            await supabase.auth.signOut();
+        } catch (error) {
+            // 就算出错也不要在意，反正我们要走了
+            console.error("Logout warning:", error);
+        } finally {
+            // 2. 【关键修正】这里的内容，无论上面成功、失败、还是超时，都 100% 会执行！
+            
+            // 清理 React 状态
+            setUser(null);
+            
+            // 暴力清理所有缓存 (确保刷新后一定是未登录)
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // 强制刷新并跳转 (相当于自动帮你按了 F5)
+            window.location.href = '/login';
+        }
     };
 
     return (

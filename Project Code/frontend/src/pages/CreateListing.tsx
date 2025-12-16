@@ -1,38 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState ,useEffect} from 'react';
 import { Navbar } from '../components/Layout/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import type { ListingDraft } from '../types';
+import { ListingService } from '../services/listing.service';
 
-/* 
-  SQL Schema for future Supabase migration:
 
-  CREATE TABLE properties (
-      id SERIAL PRIMARY KEY,
-      title TEXT NOT NULL,
-      price DECIMAL(10,2) NOT NULL,
-      beds INT NOT NULL,
-      area TEXT NOT NULL,
-      address TEXT,
-      description TEXT,
-      publisher_id UUID REFERENCES auth.users(id),
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      -- Role specific data could be in separate tables or jsonb
-      metadata JSONB 
-  );
-
-  CREATE TABLE property_images (
-      id SERIAL PRIMARY KEY,
-      property_id INT REFERENCES properties(id) ON DELETE CASCADE,
-      url TEXT NOT NULL,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-  );
-*/
 
 export const CreateListing: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-
+        // 如果用户未登录，3秒后自动跳转到首页
+        useEffect(() => {
+            if (!user) {
+                const timer = setTimeout(() => {
+                    navigate('/');
+                }, 3000);
+                
+                // 清理定时器，防止组件卸载时内存泄漏
+                return () => clearTimeout(timer);
+            }
+        }, [user, navigate]);
     const [form, setForm] = useState<ListingDraft>({
         title: '',
         price: 0,
@@ -90,23 +78,10 @@ export const CreateListing: React.FC = () => {
         setSubmitting(true);
 
         try {
-            // Mock Upload Logic
-            // 1. Upload images -> get URLs (simulated)
-            // 2. Insert into 'properties' table -> get ID
-            // 3. Insert into 'property_images' using ID
-
-            await new Promise(r => setTimeout(r, 1500)); // Simulate net delay
-
-            console.log('Publishing listing:', {
-                ...form,
-                publisherId: user.id,
-                roleSpecific: user.role === 'agent' ? { agencyName, license: roleFiles.license?.name } : { proof: roleFiles.proof?.name }
-            });
-
-            // Mock success
+            const propertyId = await ListingService.publishFromFiles(form, files, user.id);
             navigate('/?new=true');
         } catch (err) {
-            alert('Error publishing listing');
+            alert((err as any)?.message || 'Error publishing listing');
             setSubmitting(false);
         }
     };

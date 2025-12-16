@@ -1,90 +1,126 @@
-import React, { useState } from 'react';
-import { Navbar } from '../components/Layout/Navbar';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-
-type LogItem = { title: string; ok: boolean; detail?: any };
+import { Navbar } from '../components/Layout/Navbar';
 
 export const Diagnostics: React.FC = () => {
-  const [logs, setLogs] = useState<LogItem[]>([]);
-  const push = (item: LogItem) => setLogs(prev => [...prev, item]);
-  const [running, setRunning] = useState(false);
+    const [status, setStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+    const [latency, setLatency] = useState<number | null>(null);
+    const [msg, setMsg] = useState('');
+    const [tables, setTables] = useState<{ name: string; status: 'ok' | 'error'; msg?: string }[]>([]);
+    const [userInfo, setUserInfo] = useState<any>(null);
 
-  const ensureAuth = async () => {
-    const email = `diag_${Date.now()}@example.com`;
-    const password = 'DiagTest#12345';
-    const signUp = await supabase.auth.signUp({ email, password });
-    if (signUp.error && !/already/.test(signUp.error.message)) {
-      push({ title: 'Auth signUp', ok: false, detail: signUp.error.message });
-      return null;
-    }
-    const user = signUp.data.user || (await supabase.auth.getUser()).data.user;
-    push({ title: 'Auth user', ok: !!user, detail: user?.id });
-    return user?.id || null;
-  };
+    useEffect(() => {
+        checkSystem();
+    }, []);
 
-  const testReadActiveProperties = async () => {
-    const { data, error } = await supabase
-      .from('properties')
-      .select('id,title,price,status')
-      .eq('status', 'active')
-      .limit(3);
-    push({ title: 'Read active properties', ok: !error, detail: error ? error.message : data });
-  };
+    const checkSystem = async () => {
+        setStatus('checking');
+        setMsg('Starting diagnostics...');
+        setTables([]);
+        
+        const start = performance.now();
 
-  const testWriteProperty = async (uid: string | null) => {
-    if (!uid) {
-      push({ title: 'Write property precheck', ok: false, detail: 'No auth user' });
-      return;
-    }
-    const payload = {
-      owner_id: uid,
-      title: 'Diag Test Listing',
-      price: 1234,
-      beds: 1,
-      address: 'Diag Street',
-      status: 'active',
+        try {
+            // 1. Check Auth / Session
+            const { data: { session } } = await supabase.auth.getSession();
+            setUserInfo(session?.user || null);
+
+            // 2. Check 'properties' table access & Latency
+            const { error: propError } = await supabase.from('properties').select('count').limit(1).single();
+            const end = performance.now();
+            setLatency(Math.round(end - start));
+
+            if (propError) {
+                setTables(prev => [...prev, { name: 'properties', status: 'error', msg: propError.message }]);
+                throw propError;
+            } else {
+                setTables(prev => [...prev, { name: 'properties', status: 'ok' }]);
+            }
+
+            // 3. Check 'users' table access
+            const { error: userError } = await supabase.from('users').select('count').limit(1).single();
+            if (userError) {
+                setTables(prev => [...prev, { name: 'users', status: 'error', msg: userError.message }]);
+                // Don't throw here, just mark as error, maybe RLS blocks it
+            } else {
+                setTables(prev => [...prev, { name: 'users', status: 'ok' }]);
+            }
+
+            // 4. Check 'property_images'
+            const { error: imgError } = await supabase.from('property_images').select('count').limit(1).single();
+            if (imgError) {
+                setTables(prev => [...prev, { name: 'property_images', status: 'error', msg: imgError.message }]);
+            } else {
+                setTables(prev => [...prev, { name: 'property_images', status: 'ok' }]);
+            }
+
+            setStatus('connected');
+            setMsg('System is operational.');
+
+        } catch (err: any) {
+            console.error(err);
+            setStatus('error');
+            setMsg(err.message || 'Connection failed');
+        }
     };
-    const { data, error } = await supabase.from('properties').insert(payload).select('id,title').single();
-    push({ title: 'Insert property', ok: !error, detail: error ? error.message : data });
-    if (!error && data?.id) {
-      const { data: back, error: re } = await supabase.from('properties').select('id,title').eq('id', data.id).single();
-      push({ title: 'Read back property', ok: !re, detail: re ? re.message : back });
-    }
-  };
 
-  const runAll = async () => {
-    setRunning(true);
-    setLogs([]);
-    try {
-      await testReadActiveProperties();
-      const uid = await ensureAuth();
-      await testWriteProperty(uid);
-    } finally {
-      setRunning(false);
-    }
-  };
+    return (
+        <div className="page" style={{ padding: '80px 20px', background: '#f4f6f8', minHeight: '100vh' }}>
+            <Navbar />
+            <div className="card" style={{ maxWidth: 600, margin: '0 auto', padding: 30, borderRadius: 12, background: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+                <h1 style={{ fontSize: 24, marginBottom: 20, borderBottom: '1px solid #eee', paddingBottom: 10 }}>System Diagnostics</h1>
 
-  return (
-    <div className="page" style={{ paddingTop: 80, paddingBottom: 40, background: '#f6f8fb', minHeight: '100vh' }}>
-      <Navbar />
-      <main className="container" style={{ maxWidth: 900, margin: '0 auto', padding: '0 16px' }}>
-        <section className="card" style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Diagnostics</h2>
-          <p style={{ fontSize: 13, color: 'var(--muted)' }}>Run end-to-end DB connectivity and RLS/write tests.</p>
-          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-            <button onClick={runAll} className="btn btn-primary" disabled={running}>{running ? 'Running...' : 'Run tests'}</button>
-          </div>
-          <div style={{ marginTop: 16, display: 'grid', gap: 8 }}>
-            {logs.map((l, i) => (
-              <div key={i} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
-                <span>{l.title}</span>
-                <span style={{ color: l.ok ? 'var(--success)' : 'var(--danger)' }}>{l.ok ? 'OK' : 'FAIL'}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </main>
-    </div>
-  );
+                {/* Status Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 20 }}>
+                    <div style={{ 
+                        width: 16, height: 16, borderRadius: '50%', 
+                        background: status === 'connected' ? '#4caf50' : status === 'error' ? '#f44336' : '#ff9800' 
+                    }}></div>
+                    <div style={{ fontWeight: 600, fontSize: 18 }}>
+                        {status === 'checking' ? 'Running Checks...' : status === 'connected' ? 'Systems Normal' : 'System Issue'}
+                    </div>
+                </div>
+
+                {/* Metrics */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15, marginBottom: 20 }}>
+                    <div style={{ background: '#f8f9fa', padding: 15, borderRadius: 8 }}>
+                        <div style={{ fontSize: 12, color: '#666' }}>Database Latency</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: latency && latency < 500 ? '#4caf50' : '#f44336' }}>
+                            {latency ? `${latency} ms` : '---'}
+                        </div>
+                    </div>
+                    <div style={{ background: '#f8f9fa', padding: 15, borderRadius: 8 }}>
+                        <div style={{ fontSize: 12, color: '#666' }}>Auth Status</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>
+                            {userInfo ? `Logged in (${userInfo.role})` : 'Guest / Not Logged in'}
+                        </div>
+                        {userInfo && <div style={{fontSize: 10, color: '#999', marginTop: 4}}>{userInfo.id}</div>}
+                    </div>
+                </div>
+
+                {/* Table Checks */}
+                <h3 style={{ fontSize: 16, marginBottom: 10 }}>Database Table Access</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                    {tables.map(t => (
+                        <div key={t.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 15px', background: t.status === 'ok' ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)', borderRadius: 6, alignItems: 'center' }}>
+                            <span style={{ fontWeight: 500 }}>{t.name}</span>
+                            <span style={{ fontSize: 13, color: t.status === 'ok' ? '#2e7d32' : '#c62828' }}>
+                                {t.status === 'ok' ? 'Accessible ✅' : `Access Denied / Error ❌ (${t.msg})`}
+                            </span>
+                        </div>
+                    ))}
+                    {tables.length === 0 && <div style={{ color: '#999', fontSize: 13 }}>Waiting for results...</div>}
+                </div>
+
+                <button onClick={checkSystem} className="btn btn-primary" style={{ width: '100%' }}>Re-run Diagnostics</button>
+                
+                {msg && status === 'error' && (
+                    <div style={{ marginTop: 20, padding: 15, background: '#ffebee', color: '#c62828', borderRadius: 8, fontSize: 13 }}>
+                        <strong>Error Details:</strong> {msg}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 

@@ -37,31 +37,8 @@ export const Logo: React.FC<LogoProps> = ({ className, style }) => {
                 UKM
             </div>
 
-            {/* Text */}
-            <div>
-                <div
-                    className="title"
-                    id="page-title"
-                    style={{
-                        fontWeight: 800,
-                        fontSize: '18px',
-                        lineHeight: '1.2'
-                    }}
-                >
-                    UKM Students off School Rented System
-                </div>
-
-                <div
-                    className="subtitle"
-                    style={{
-                        fontSize: '13px',
-                        color: 'var(--muted-dark)',
-                        marginTop: '2px'
-                    }}
-                >
-                    Sign in to find & manage off-campus housing
-                </div>
-            </div>
+            
+           
         </div>
     );
 };

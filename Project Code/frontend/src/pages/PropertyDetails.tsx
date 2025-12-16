@@ -7,7 +7,10 @@ import clsx from 'clsx';
 
 export const PropertyDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const { property, loading, error } = useProperty(Number(id));
+    
+    // ✅ 修正：直接使用字符串 id，并处理 undefined 情况
+    const { property, loading, error } = useProperty(id || '');
+    
     const [activeSlide, setActiveSlide] = useState(0);
     const { user } = useAuth();
     const [fav, setFav] = useState(false);
