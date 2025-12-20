@@ -6,9 +6,9 @@ import clsx from 'clsx';
 import type { Application } from '../types';
 
 const MOCK_APPS: Application[] = [
-    { id: 8001, propertyId: 101, propertyTitle: "Studio near UKM - 5 min", applicant: "Zhang Peigen", studentId: "A199958", submitted: "2025-12-01T10:15", status: "pending", message: "I need the room from Jan to June. I can provide guarantor.", files: [{ name: "student_id.jpg", type: "image/jpeg", url: "#" }, { name: "transcript.pdf", type: "application/pdf", url: "#" }] },
-    { id: 8002, propertyId: 103, propertyTitle: "2BR apartment — quiet neighbourhood", applicant: "Liu Zetong", studentId: "A199538", submitted: "2025-12-03T14:20", status: "pending", message: "Looking for a 2-month stay in Jan-Feb.", files: [{ name: "id_card.png", type: "image/png", url: "#" }] },
-    { id: 8003, propertyId: 102, propertyTitle: "Cozy 1BR, close to bus stop", applicant: "Siti Nur", studentId: "A201234", submitted: "2025-11-24T09:05", status: "accepted", files: [] }
+    { id: 8001, propertyId: "101", propertyTitle: "Studio near UKM - 5 min", applicant: "Zhang Peigen", studentId: "A199958", submitted: "2025-12-01T10:15", status: "pending", message: "I need the room from Jan to June. I can provide guarantor.", files: [{ name: "student_id.jpg", type: "image/jpeg", url: "#" }, { name: "transcript.pdf", type: "application/pdf", url: "#" }] },
+    { id: 8002, propertyId: "103", propertyTitle: "2BR apartment — quiet neighbourhood", applicant: "Liu Zetong", studentId: "A199538", submitted: "2025-12-03T14:20", status: "pending", message: "Looking for a 2-month stay in Jan-Feb.", files: [{ name: "id_card.png", type: "image/png", url: "#" }] },
+    { id: 8003, propertyId: "102", propertyTitle: "Cozy 1BR, close to bus stop", applicant: "Siti Nur", studentId: "A201234", submitted: "2025-11-24T09:05", status: "accepted", files: [] }
 ];
 
 export const Applications: React.FC = () => {

@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ProfileSidebar } from './ProfileSidebar';
 
 export const Navbar: React.FC = () => {
-    const { user, login, logout } = useAuth();
+    const { user, logout } = useAuth();
     const [isManagementMode, setIsManagementMode] = useState(false);
     const [showSidebar, setShowSidebar] = useState(false);
 
@@ -104,6 +104,7 @@ export const Navbar: React.FC = () => {
                             <Link to="/register" className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 16px', borderRadius: 10 }}>
                                 Sign up
                             </Link>
+                            {/* Guest login removed as it is not supported by backend yet
                             <button
                                 onClick={() => login('guest')}
                                 className="btn btn-ghost"
@@ -112,6 +113,7 @@ export const Navbar: React.FC = () => {
                             >
                                 Guest
                             </button>
+                            */}
                         </>
                     )}
                 </nav>

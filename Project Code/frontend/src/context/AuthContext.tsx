@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setUser(null);
             }
         });
-        const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user?.id) {
                 const profile = await fetchProfile(session.user.id);
                 setUser(profile);

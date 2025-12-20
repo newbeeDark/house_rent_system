@@ -78,7 +78,7 @@ export const CreateListing: React.FC = () => {
         setSubmitting(true);
 
         try {
-            const propertyId = await ListingService.publishFromFiles(form, files, user.id);
+            await ListingService.publishFromFiles(form, files, user.id);
             navigate('/?new=true');
         } catch (err) {
             alert((err as any)?.message || 'Error publishing listing');

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Layout/Navbar';
-import { runSupabaseSchemaCheck } from '../services/supabaseSchemaCheck';
 import { getUserProfile, uploadAvatar } from '../services/profile.service';
 
 interface Doc {
@@ -47,23 +46,19 @@ export const Profile: React.FC = () => {
     const [isVerified, setIsVerified] = useState(false);
 
     // Prefs
-    const [prefs, setPrefs] = useState({ email: true, sms: false, push: false });
-    const [privacy, setPrivacy] = useState({ visible: true, showContact: false });
+    const [prefs] = useState({ email: true, sms: false, push: false });
+    const [privacy] = useState({ visible: true, showContact: false });
 
     // Address
-    const [address, setAddress] = useState('');
-    const [locating, setLocating] = useState(false);
+    const [address] = useState('');
 
     // Docs
     const [docs, setDocs] = useState<Doc[]>([]);
 
     // Avatar
-    const [avatar, setAvatar] = useState<string | null>(null);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-    // Password
-    const [pwd, setPwd] = useState({ current: '', new: '', confirm: '' });
-    const [pwdMsg, setPwdMsg] = useState({ text: '', error: false });
+    // Password (not used in this demo)
 
     // Toast
     const [toast, setToast] = useState<{ text: string; bg?: string } | null>(null);
@@ -128,27 +123,7 @@ export const Profile: React.FC = () => {
         showToastMsg('Document uploaded (demo)');
     };
 
-    const detectAddress = async () => {
-        if (!navigator.geolocation) {
-            setAddress('Geolocation not supported');
-            return;
-        }
-        setLocating(true);
-        try {
-            const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }));
-            const { latitude: lat, longitude: lon } = pos.coords;
-            const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2`);
-            const data = await resp.json();
-            const addr = data.display_name || 'Unknown location';
-            setAddress(addr);
-            showToastMsg('Address detected');
-        } catch (err) {
-            console.warn(err);
-            showToastMsg('Location failed', true);
-        } finally {
-            setLocating(false);
-        }
-    };
+    // Geolocation detect function not used; removed to satisfy TS noUnusedLocals
 
     const handleSave = () => {
         if (!fullName.trim()) { showToastMsg('Full name is required', true); return; }
