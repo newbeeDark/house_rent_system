@@ -1162,7 +1162,6 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         <Elements stripe={stripePromise}>
                             <StripePaymentForm
                                 amount={1000}
-                                applicationId={application.id}
                                 onSuccess={handlePaymentSuccess}
                                 onCancel={() => setShowPaymentModal(false)}
                             />
