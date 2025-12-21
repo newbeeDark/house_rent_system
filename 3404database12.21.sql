@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict L9KjeXqCfzNEwx2LKL4UtdWpZjxkyFEk81TsToSMi437ZPIq55Aif0nySpGsL7T
+\restrict djfitFIae6oTzqbB68iNZjbKAHbdeXpLclAs5VdeA9vpVceDedJ0wyCLUhDhqLc
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 18.1
@@ -787,6 +787,155 @@ CREATE FUNCTION pgbouncer.get_auth(p_usename text) RETURNS TABLE(username text, 
 ALTER FUNCTION pgbouncer.get_auth(p_usename text) OWNER TO supabase_admin;
 
 --
+-- Name: complete_payment(uuid, uuid, numeric); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.complete_payment(p_application_id uuid, p_payer_id uuid, p_amount numeric) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+begin
+  -- 1. 插入支付记录
+  insert into public.payments (application_id, payer_id, amount, status)
+  values (p_application_id, p_payer_id, p_amount, 'completed');
+
+  -- 2. 更新申请状态为 'completed'
+  update public.applications
+  set status = 'completed',
+      updated_at = now()
+  where id = p_application_id;
+end;
+$$;
+
+
+ALTER FUNCTION public.complete_payment(p_application_id uuid, p_payer_id uuid, p_amount numeric) OWNER TO postgres;
+
+--
+-- Name: handle_application_status_change(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.handle_application_status_change() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_property_title text;
+  v_feedback_text text;
+BEGIN
+  -- 只有状态改变时才通知
+  IF old.status <> new.status THEN
+    -- 查找房源标题
+    SELECT title INTO v_property_title
+    FROM public.properties
+    WHERE id = new.property_id;
+
+    -- 处理反馈内容：如果有反馈，加到通知里；如果没有，显示默认文案
+    IF new.feedback IS NOT NULL AND new.feedback <> '' THEN
+      v_feedback_text := ' Host message: "' || new.feedback || '"';
+    ELSE
+      v_feedback_text := '';
+    END IF;
+
+    -- 给学生插入通知
+    INSERT INTO public.notifications (user_id, type, title, content, related_link)
+    VALUES (
+      new.applicant_id, -- 申请人ID
+      'application', 
+      'Application ' || INITCAP(new.status), -- 标题例如: Application Accepted
+      'Your application for "' || v_property_title || '" has been ' || new.status || '.' || v_feedback_text,
+      '/applications' -- 点击跳转查看详情
+    );
+  END IF;
+
+  RETURN new;
+END;
+$$;
+
+
+ALTER FUNCTION public.handle_application_status_change() OWNER TO postgres;
+
+--
+-- Name: handle_new_application(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.handle_new_application() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+declare
+  v_owner_id uuid;
+  v_property_title text;
+begin
+  -- 1. 查找房源的房东ID和标题
+  select owner_id, title into v_owner_id, v_property_title
+  from public.properties
+  where id = new.property_id;
+
+  -- 2. 给房东插入一条通知
+  insert into public.notifications (user_id, type, title, content, related_link)
+  values (
+    v_owner_id, 
+    'application', 
+    'New Rental Application', 
+    'You have received a new application for ' || v_property_title,
+    '/host-dashboard' -- 房东点击跳转去仪表盘处理
+  );
+
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION public.handle_new_application() OWNER TO postgres;
+
+--
+-- Name: handle_new_complaint(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.handle_new_complaint() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_owner_id uuid;
+  v_admin_id uuid;
+  v_property_title text;
+  v_target_name text;
+BEGIN
+  -- 1. 确定被投诉对象的详细信息
+  IF new.target_type = 'property' THEN
+    SELECT owner_id, title INTO v_owner_id, v_property_title
+    FROM public.properties
+    WHERE id = new.target_id;
+    v_target_name := v_property_title;
+  ELSE
+    v_owner_id := new.target_id; -- 如果直接投诉人
+    SELECT full_name INTO v_target_name FROM public.users WHERE id = v_owner_id;
+  END IF;
+
+  -- 2. 获取管理员 ID (假设有一个 admin 角色)
+  SELECT id INTO v_admin_id FROM public.users WHERE role = 'admin' LIMIT 1;
+
+  -- 3. 发送给管理员
+  IF v_admin_id IS NOT NULL THEN
+    INSERT INTO public.notifications (user_id, type, title, content, related_link)
+    VALUES (v_admin_id, 'system', 'Complaint Alert', 'New complaint: ' || new.category, '/admin/complaints');
+  END IF;
+
+  -- 4. 发送给被投诉人 (房东)
+  IF v_owner_id IS NOT NULL THEN
+    INSERT INTO public.notifications (user_id, type, title, content, related_link)
+    VALUES (v_owner_id, 'system', 'Complaint Received', 'Complaint against: ' || COALESCE(v_target_name, 'Unknown'), '/host-dashboard');
+  END IF;
+
+  -- 5. 发送给投诉人自己 (确认函)
+  INSERT INTO public.notifications (user_id, type, title, content, related_link)
+  VALUES (new.reporter_id, 'system', 'Report Submitted', 'We received your report.', '/profile');
+
+  RETURN new;
+END;
+$$;
+
+
+ALTER FUNCTION public.handle_new_complaint() OWNER TO postgres;
+
+--
 -- Name: handle_new_user(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -852,10 +1001,14 @@ ALTER FUNCTION public.is_admin() OWNER TO postgres;
 CREATE FUNCTION public.set_application_owner() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
-begin
-  select owner_id into new.property_owner_id from public.properties where id = new.property_id;
-  return new;
-end;
+BEGIN
+  -- 从 properties 表查找 owner_id 并填入 application
+  SELECT owner_id INTO new.property_owner_id 
+  FROM public.properties 
+  WHERE id = new.property_id;
+  
+  RETURN new;
+END;
 $$;
 
 
@@ -3187,7 +3340,17 @@ CREATE TABLE public.applications (
     status text DEFAULT 'pending'::text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT applications_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text])))
+    appointment_at timestamp with time zone,
+    feedback text,
+    contract_url text,
+    contract_status text DEFAULT 'pending'::text,
+    payment_status text DEFAULT 'unpaid'::text,
+    stage text DEFAULT 'application'::text,
+    contract_signed_tenant boolean DEFAULT false,
+    contract_signed_landlord boolean DEFAULT false,
+    CONSTRAINT applications_contract_status_check CHECK ((contract_status = ANY (ARRAY['pending'::text, 'uploaded'::text, 'signed_by_tenant'::text, 'signed_by_landlord'::text, 'completed'::text]))),
+    CONSTRAINT applications_payment_status_check CHECK ((payment_status = ANY (ARRAY['unpaid'::text, 'paid'::text]))),
+    CONSTRAINT applications_stage_check CHECK ((stage = ANY (ARRAY['application'::text, 'processing'::text, 'completed'::text])))
 );
 
 
@@ -3224,6 +3387,41 @@ CREATE TABLE public.favorites (
 
 
 ALTER TABLE public.favorites OWNER TO postgres;
+
+--
+-- Name: notifications; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.notifications (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    type text NOT NULL,
+    title text NOT NULL,
+    content text NOT NULL,
+    is_read boolean DEFAULT false,
+    related_link text,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['system'::text, 'application'::text, 'general'::text])))
+);
+
+
+ALTER TABLE public.notifications OWNER TO postgres;
+
+--
+-- Name: payments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    application_id uuid NOT NULL,
+    payer_id uuid NOT NULL,
+    amount numeric NOT NULL,
+    currency text DEFAULT 'MYR'::text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.payments OWNER TO postgres;
 
 --
 -- Name: properties; Type: TABLE; Schema: public; Owner: postgres
@@ -3320,6 +3518,7 @@ CREATE TABLE public.users (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     landlord_licenceid text,
+    terms_accepted_at timestamp with time zone,
     CONSTRAINT landlord_licence_only_for_landlord CHECK (((landlord_licenceid IS NULL) OR (role = 'landlord'::text))),
     CONSTRAINT users_role_check CHECK ((role = ANY (ARRAY['admin'::text, 'landlord'::text, 'agent'::text, 'tenant'::text, 'student'::text, 'guest'::text])))
 );
@@ -3597,6 +3796,9 @@ COPY auth.identities (provider_id, user_id, identity_data, provider, last_sign_i
 6ceb2c46-4def-4cc2-9306-fade1ce435eb	6ceb2c46-4def-4cc2-9306-fade1ce435eb	{"sub": "6ceb2c46-4def-4cc2-9306-fade1ce435eb", "role": "student", "email": "a199958@siswa.ukm.edu.my", "phone": "+60 11-6093 9082", "full_name": "Zhang Peigen", "student_id": "A199958", "email_verified": false, "phone_verified": false}	email	2025-12-15 16:04:10.421801+00	2025-12-15 16:04:10.421855+00	2025-12-15 16:04:10.421855+00	37d820fc-cbf4-4a14-90e8-c92131653df4
 9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	{"sub": "9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e", "role": "landlord", "email": "yurkibacon@gmail.com", "phone": "+60 1160939082", "full_name": "Yuki Zhang", "email_verified": false, "phone_verified": false, "landlord_licenceID": "A199958"}	email	2025-12-16 08:40:20.184025+00	2025-12-16 08:40:20.184084+00	2025-12-16 08:40:20.184084+00	2a0d935d-8a0c-4d00-bb13-548afbb09410
 d0dbc613-192c-4ad5-bef4-88b950495282	d0dbc613-192c-4ad5-bef4-88b950495282	{"sub": "d0dbc613-192c-4ad5-bef4-88b950495282", "role": "student", "email": "blueeeke@outlook.com", "phone": "+60142854882", "full_name": "Blue", "student_id": "A188232", "email_verified": false, "phone_verified": false}	email	2025-12-16 11:00:33.563952+00	2025-12-16 11:00:33.56403+00	2025-12-16 11:00:33.56403+00	7ebd7a17-af96-489d-b4f0-f27ca7b2202f
+150d7866-d014-4d4a-b246-ff6a0d42e9d1	150d7866-d014-4d4a-b246-ff6a0d42e9d1	{"sub": "150d7866-d014-4d4a-b246-ff6a0d42e9d1", "role": "landlord", "email": "199538@siswa.ukm.edu.my", "full_name": "Liu Zetong", "email_verified": false, "phone_verified": false}	email	2025-12-17 01:43:37.060626+00	2025-12-17 01:43:37.060683+00	2025-12-17 01:43:37.060683+00	5518a528-efc9-4de3-895a-ef17981aa601
+4315c8c3-379b-455f-9d76-af9c56b96883	4315c8c3-379b-455f-9d76-af9c56b96883	{"sub": "4315c8c3-379b-455f-9d76-af9c56b96883", "role": "landlord", "email": "a199538@siswa.ukm.edu.my", "phone": "+60 17-7096167", "full_name": "Liu Zetong", "email_verified": false, "phone_verified": false, "landlord_licenceID": "12121"}	email	2025-12-20 08:57:57.663555+00	2025-12-20 08:57:57.664377+00	2025-12-20 08:57:57.664377+00	d101132b-b6d9-413b-a131-60739b558cc6
+509a7ff6-bd90-4933-a322-124eeb83ff8c	509a7ff6-bd90-4933-a322-124eeb83ff8c	{"sub": "509a7ff6-bd90-4933-a322-124eeb83ff8c", "role": "student", "email": "loveyou@outlook.com", "phone": "+86 18756947992", "full_name": "MaiHami", "student_id": "2205645803", "email_verified": false, "phone_verified": false}	email	2025-12-21 14:33:54.333854+00	2025-12-21 14:33:54.333915+00	2025-12-21 14:33:54.333915+00	82d021d2-d102-4230-9107-b11a3b9389df
 \.
 
 
@@ -3613,55 +3815,22 @@ COPY auth.instances (id, uuid, raw_base_config, created_at, updated_at) FROM std
 --
 
 COPY auth.mfa_amr_claims (session_id, created_at, updated_at, authentication_method, id) FROM stdin;
-48f017b7-bab3-4667-8cb7-aa0bc7131068	2025-12-16 17:54:44.59876+00	2025-12-16 17:54:44.59876+00	password	adfe1af4-4546-4152-a397-a13a50a82743
-0630c0b5-4bf4-4ca4-bcd2-3e2671bc2ac7	2025-12-16 18:00:59.756308+00	2025-12-16 18:00:59.756308+00	password	6324b9bf-1163-461f-83d7-224e5d410262
-e4154892-4f61-4e5f-a996-ba452a431510	2025-12-16 18:01:41.29554+00	2025-12-16 18:01:41.29554+00	password	27d926bc-a991-445c-8a3f-69520964e753
-290cf736-ef90-4c19-82eb-7205ff2491ef	2025-12-16 18:35:15.724206+00	2025-12-16 18:35:15.724206+00	password	84367bbe-feca-4454-830f-acd45536c00f
-85963ab1-97bc-474a-a60b-4706767a06a3	2025-12-16 18:35:28.354151+00	2025-12-16 18:35:28.354151+00	password	82b0e0a5-cd62-43e9-8332-b800800a39dd
-4ff9557e-dcb4-4604-839a-a7981d00a134	2025-12-16 18:40:47.388486+00	2025-12-16 18:40:47.388486+00	password	96657d46-1f11-42d2-ac70-755e087151ed
-904e5cb4-085e-4b95-8138-d76de7212839	2025-12-16 18:42:44.824319+00	2025-12-16 18:42:44.824319+00	password	7307b3c5-3e2d-48fd-80e3-215b29111b62
-33e27c5e-50d3-4071-82e3-f3fc492f7509	2025-12-16 19:25:27.956994+00	2025-12-16 19:25:27.956994+00	password	c1d82aca-c578-4957-9468-63b4d0b590c9
-b6b770b0-e90a-4c56-8a74-0031fa0b794a	2025-12-16 19:25:33.741652+00	2025-12-16 19:25:33.741652+00	password	2e26df9f-2b69-45d9-be8a-b5e4c1a9ea67
-ddbee440-793f-4c6e-b2a7-831520547225	2025-12-16 19:25:46.588885+00	2025-12-16 19:25:46.588885+00	password	c1915b5a-7d65-4f6e-9972-13cbcf0173cc
-c2c93d25-c418-4ac6-8a2d-7217f57fa45c	2025-12-16 19:27:16.052493+00	2025-12-16 19:27:16.052493+00	password	3d110605-e116-4b14-adba-f7183d96df5a
-f75633c1-508c-4c94-8ea6-ab488cf2e7c9	2025-12-16 19:27:20.009574+00	2025-12-16 19:27:20.009574+00	password	a1372daa-ee0b-49e2-b205-24173cf4148d
-86ca007c-7bd1-4205-b762-dfd2213f3b10	2025-12-16 19:36:03.246728+00	2025-12-16 19:36:03.246728+00	password	ae80691d-d16e-4785-b4af-d16737dfd50c
-a3153e81-f8d5-4d31-8c61-bf279f3bc457	2025-12-16 19:36:26.801178+00	2025-12-16 19:36:26.801178+00	password	1583b7d4-ca7e-4454-9f6b-d77d009171b2
-775bacb3-79f8-4945-8cb7-f615784d3f75	2025-12-16 19:59:59.545506+00	2025-12-16 19:59:59.545506+00	password	dbf503d7-59e6-4015-80a1-089a364358d9
-652cdd7f-1c4f-40db-812c-afbc9ed0e8a5	2025-12-16 20:01:09.025401+00	2025-12-16 20:01:09.025401+00	password	fc075f7e-83d0-4e34-8e25-e9cddde3bc07
-ce3d27b8-41c0-4bfb-ad22-7faacbf9e5db	2025-12-16 20:01:16.927923+00	2025-12-16 20:01:16.927923+00	password	a69ad891-9dc7-4283-9827-e931567ac012
-d0063372-2bb4-4313-80ad-abf5bf954fbb	2025-12-16 08:32:58.037694+00	2025-12-16 08:32:58.037694+00	password	b518c404-9386-4b31-9aa9-ee74da500816
-507cc712-8475-4134-8bb4-80a1254d5cab	2025-12-16 20:07:58.158187+00	2025-12-16 20:07:58.158187+00	password	41a7b4c2-fbe9-4fe8-bc59-c1c3c628fe25
-988279f9-a16f-4846-bde5-bd9ebe8b9a81	2025-12-16 20:08:10.344865+00	2025-12-16 20:08:10.344865+00	password	0485f102-126e-476b-82d3-6cc4ab5f28ae
-7bbbedd2-a769-4c83-96a0-5efe422ef158	2025-12-16 20:11:59.684739+00	2025-12-16 20:11:59.684739+00	password	65cc52f9-cdca-4a50-9ecd-5f168b5e7831
-4347e5b3-eac5-4abc-9125-66c73cddacff	2025-12-16 08:41:27.044596+00	2025-12-16 08:41:27.044596+00	password	d6a9f5ca-4dd9-40b0-a23e-778650011b55
-541ade68-68df-4e60-ab85-581718167985	2025-12-16 20:12:05.098947+00	2025-12-16 20:12:05.098947+00	password	cbd83c0e-fb8d-4a28-a044-502a9ab7b5a1
-fb57002b-442d-4f07-bd10-17a9e63131e6	2025-12-16 20:12:12.985115+00	2025-12-16 20:12:12.985115+00	password	f62ce203-6eb0-493d-b0d1-83de8a5d720d
-5cbee71d-4d3f-448e-a2cd-ac2498fbbc12	2025-12-16 20:12:18.167791+00	2025-12-16 20:12:18.167791+00	password	7a08cac1-586b-43f3-9065-5caa3935914b
-418fdaaa-3a9f-4f81-ac39-fd474e71ad2e	2025-12-16 20:12:25.733885+00	2025-12-16 20:12:25.733885+00	password	665b1d70-1794-4de5-afbb-09b7455e7097
-d00ce502-8399-4bde-9c67-b98faec65975	2025-12-16 20:12:41.92102+00	2025-12-16 20:12:41.92102+00	password	f9d3e86c-5875-4d0b-9806-412fad8508ac
-c91c70dc-f9a6-46d7-babf-3de88e22de86	2025-12-16 20:12:47.083418+00	2025-12-16 20:12:47.083418+00	password	df31b6cf-4d4e-4cf5-9948-1b65018db479
-521a032f-e615-47fe-96ca-5823c5ef56a5	2025-12-16 20:21:58.671805+00	2025-12-16 20:21:58.671805+00	password	8851a501-b579-4e60-b0b7-8d5c42a948c0
-7fbd61d7-224e-4da3-830b-5851d044a3c9	2025-12-16 09:26:50.273127+00	2025-12-16 09:26:50.273127+00	password	5b87a3e1-42ee-470f-8e77-935c3c053a3c
-541e52ef-88f1-45dd-8300-158646c92118	2025-12-16 20:22:02.735568+00	2025-12-16 20:22:02.735568+00	password	a85700a3-cf57-4051-9365-df2dcd323d0a
-a6f86fc0-0392-42fb-b756-dc73c90628c8	2025-12-16 20:22:11.971308+00	2025-12-16 20:22:11.971308+00	password	83b87bd0-6f4b-4acf-b8e7-710ed9616600
-ff69b46d-ec80-4a6f-a790-11c558d66ab4	2025-12-16 20:33:31.288169+00	2025-12-16 20:33:31.288169+00	password	93b006dc-34a4-40e2-8774-b7345e5a0d90
-53ee2736-b794-4803-9566-9c056eb60eeb	2025-12-16 20:34:04.807124+00	2025-12-16 20:34:04.807124+00	password	05780c82-cc82-4ac0-8d5a-1d56e60fc0e4
-38f83a08-9be6-4759-96b5-9562ce33f4ce	2025-12-16 20:38:28.130549+00	2025-12-16 20:38:28.130549+00	password	0b1a224a-31fe-46f5-9b8c-bf0584a04d5d
-cf4703b8-0afe-47d0-afcc-5391ebbd51ad	2025-12-16 20:40:56.611213+00	2025-12-16 20:40:56.611213+00	password	ce6fdb35-dac7-4e59-9dd2-7421f7a5bf64
-30a559c3-fa31-40ef-a52e-7b0153cbfe8f	2025-12-16 21:38:55.800115+00	2025-12-16 21:38:55.800115+00	password	3725ab08-0e62-4209-8a79-187a80f42e56
-a635dab5-199d-43bc-a60e-0db13d285b1e	2025-12-16 21:48:23.527821+00	2025-12-16 21:48:23.527821+00	password	501ad306-b619-49e7-bfe9-4fa9858a9cc4
-f91c257c-57d4-402c-95a6-74ebdb2fefe9	2025-12-16 21:48:30.573528+00	2025-12-16 21:48:30.573528+00	password	68364771-32f5-499c-94c9-de223b3e2eff
-07b2a043-bd6c-4dd9-ab72-653ca0e8264b	2025-12-16 21:48:48.866384+00	2025-12-16 21:48:48.866384+00	password	03697e93-d346-4d01-bec0-99af3760e1f7
-05fbd009-da2b-40de-9715-14689ee38bbf	2025-12-16 21:49:01.694488+00	2025-12-16 21:49:01.694488+00	password	1e517085-ddbf-4827-96e9-eafa872ecd63
-5ab020b2-d4cf-4c56-bb4e-7d200f846a0a	2025-12-16 21:49:57.775002+00	2025-12-16 21:49:57.775002+00	password	e5702d3d-6425-4e4e-bb54-cab6728663a2
-1e155d72-4841-4cd6-a89b-022d9a7b0701	2025-12-16 21:52:11.146915+00	2025-12-16 21:52:11.146915+00	password	2a7dc893-c6e9-40e1-8d0e-ed041d6b8f1b
-18266d21-3ab0-467d-8b18-b9013c379eda	2025-12-16 21:52:17.850717+00	2025-12-16 21:52:17.850717+00	password	29098d41-9ed6-4d83-bbfd-713b5fe39b6a
-6e8e1639-70e0-43cf-863f-bc999594db7e	2025-12-16 21:55:31.686041+00	2025-12-16 21:55:31.686041+00	password	07659a9a-4b88-42ef-89b5-fbdce59d04eb
-acba6cb5-24f5-474b-804b-709038219cd2	2025-12-16 21:55:41.327157+00	2025-12-16 21:55:41.327157+00	password	0057f799-631a-40e3-b3ba-b905c6613b00
-24cdbe49-d337-423f-92fe-2fe44db8dab1	2025-12-16 22:36:14.32395+00	2025-12-16 22:36:14.32395+00	password	1c13793e-b962-465f-955b-d2b1be6b3386
-c7bf0c3e-f346-4a5b-aab3-a12d1c0ded44	2025-12-16 22:36:24.440769+00	2025-12-16 22:36:24.440769+00	password	f1ee418a-447d-46b2-a1e4-d06b3288b503
-2b463346-c2e2-4c8e-8ee3-07d424a608c9	2025-12-16 11:00:33.666521+00	2025-12-16 11:00:33.666521+00	password	32991b66-4448-45a5-a04b-70b5db4d39d2
+b4033806-7472-469e-accb-c7d3faa8e392	2025-12-17 01:43:37.152827+00	2025-12-17 01:43:37.152827+00	password	3d7636a8-3b37-48e5-a96f-bc6812fc21b7
+751325fa-fb90-4a41-8766-576eedd64bb8	2025-12-17 01:43:48.665566+00	2025-12-17 01:43:48.665566+00	password	49523424-cd89-48dc-9f61-e943af54a7f1
+1c506c8d-7a6b-44e5-a790-6a84c2bfc502	2025-12-17 01:49:21.21293+00	2025-12-17 01:49:21.21293+00	password	84c474ba-c1a8-491a-9466-99ca1deb7fc9
+68751b2d-7bea-4f05-882c-86aa1f9eba34	2025-12-17 01:51:11.704499+00	2025-12-17 01:51:11.704499+00	password	6e123001-d914-4b41-b702-71a73b7d615a
+c4192bca-a489-40cf-acd8-75adb35c0f7b	2025-12-17 02:04:43.834804+00	2025-12-17 02:04:43.834804+00	password	7c0cee4c-ae2e-40e9-beaf-b8ac02a4fef0
+2ea4e44b-ddf9-4cfe-b188-fe0ddb66e65f	2025-12-17 02:07:30.804123+00	2025-12-17 02:07:30.804123+00	password	0bffeec2-94f1-407d-9ce3-60a3335369f4
+136bb50b-9bfe-4c7e-a2c9-e29abf645cb9	2025-12-21 12:10:59.760193+00	2025-12-21 12:10:59.760193+00	password	1430e873-61bc-4b36-a6bb-efb7ac7f94da
+4d1f6e83-9f5a-4147-bf48-6b0146b506f8	2025-12-20 08:57:57.722523+00	2025-12-20 08:57:57.722523+00	password	6e609983-b0ac-45b8-ac87-1638b83ce038
+ec94c6ee-b3ce-4d64-8752-c499d1700dba	2025-12-20 08:58:10.989116+00	2025-12-20 08:58:10.989116+00	password	251c6e51-4108-410b-a59b-6e181899158b
+c33adf61-b905-49ac-ac01-90d092a96d41	2025-12-21 12:19:07.532199+00	2025-12-21 12:19:07.532199+00	password	87080a0f-a684-4f24-8b9a-b98607db9c47
+1deb95fc-463e-4e19-b1a3-bc9fd18d8361	2025-12-20 13:04:12.107628+00	2025-12-20 13:04:12.107628+00	password	0e777754-7829-4c8d-b093-f4c2ce22417a
+f1449f74-69d7-476b-8dd4-f9eabaec1ce1	2025-12-20 13:04:40.57779+00	2025-12-20 13:04:40.57779+00	password	f90135dd-ee09-4ebb-a137-b9a41e930327
+1e54e930-55db-4d85-9699-a65f62fd61b9	2025-12-21 14:33:54.373904+00	2025-12-21 14:33:54.373904+00	password	ce1ef1b8-7fca-4f07-ae23-80315667d557
+505f80d8-55d7-4723-bce5-b4a8eddf772a	2025-12-21 14:34:54.662772+00	2025-12-21 14:34:54.662772+00	password	462ace3f-3b3e-43d6-acca-c82658bc0380
+1051d6c1-f5ea-482f-af0e-bd4b934f35fd	2025-12-21 14:35:48.6466+00	2025-12-21 14:35:48.6466+00	password	7c958f8e-c337-49cd-94da-7dcb67de1de1
+08f21894-2985-4d8f-a0a9-96e371ec765e	2025-12-21 14:37:10.236581+00	2025-12-21 14:37:10.236581+00	password	26736ffd-a6f7-425b-a48e-855599c5b5cb
 \.
 
 
@@ -3726,56 +3895,22 @@ COPY auth.one_time_tokens (id, user_id, token_type, token_hash, relates_to, crea
 --
 
 COPY auth.refresh_tokens (instance_id, id, token, user_id, revoked, created_at, updated_at, parent, session_id) FROM stdin;
-00000000-0000-0000-0000-000000000000	113	lmkss5nbbj2v	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 18:00:59.752889+00	2025-12-16 18:00:59.752889+00	\N	0630c0b5-4bf4-4ca4-bcd2-3e2671bc2ac7
-00000000-0000-0000-0000-000000000000	114	6vv74k2xuhz5	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 18:01:41.255361+00	2025-12-16 18:01:41.255361+00	\N	e4154892-4f61-4e5f-a996-ba452a431510
-00000000-0000-0000-0000-000000000000	117	yhloz6rg4yae	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 18:40:47.385366+00	2025-12-16 18:40:47.385366+00	\N	4ff9557e-dcb4-4604-839a-a7981d00a134
-00000000-0000-0000-0000-000000000000	119	medq5ebhuvqf	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:25:27.921052+00	2025-12-16 19:25:27.921052+00	\N	33e27c5e-50d3-4071-82e3-f3fc492f7509
-00000000-0000-0000-0000-000000000000	120	vrln5feu275q	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:25:33.740404+00	2025-12-16 19:25:33.740404+00	\N	b6b770b0-e90a-4c56-8a74-0031fa0b794a
-00000000-0000-0000-0000-000000000000	121	yp4tl5nx5g4s	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:25:46.587657+00	2025-12-16 19:25:46.587657+00	\N	ddbee440-793f-4c6e-b2a7-831520547225
-00000000-0000-0000-0000-000000000000	124	kuwn2of6luzq	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:36:03.239497+00	2025-12-16 19:36:03.239497+00	\N	86ca007c-7bd1-4205-b762-dfd2213f3b10
-00000000-0000-0000-0000-000000000000	125	z3cpqflzvrd5	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:36:26.799915+00	2025-12-16 19:36:26.799915+00	\N	a3153e81-f8d5-4d31-8c61-bf279f3bc457
-00000000-0000-0000-0000-000000000000	127	dz2gq33ircrw	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:01:09.023029+00	2025-12-16 20:01:09.023029+00	\N	652cdd7f-1c4f-40db-812c-afbc9ed0e8a5
-00000000-0000-0000-0000-000000000000	128	pmju3rt5kbpy	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:01:16.925856+00	2025-12-16 20:01:16.925856+00	\N	ce3d27b8-41c0-4bfb-ad22-7faacbf9e5db
-00000000-0000-0000-0000-000000000000	131	d6f632z3gdw7	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:11:59.68191+00	2025-12-16 20:11:59.68191+00	\N	7bbbedd2-a769-4c83-96a0-5efe422ef158
-00000000-0000-0000-0000-000000000000	132	me446ueiwboa	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:12:05.097678+00	2025-12-16 20:12:05.097678+00	\N	541ade68-68df-4e60-ab85-581718167985
-00000000-0000-0000-0000-000000000000	133	x6jjk5cmpykh	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:12:12.983157+00	2025-12-16 20:12:12.983157+00	\N	fb57002b-442d-4f07-bd10-17a9e63131e6
-00000000-0000-0000-0000-000000000000	134	4ylfon6comiq	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:12:18.166364+00	2025-12-16 20:12:18.166364+00	\N	5cbee71d-4d3f-448e-a2cd-ac2498fbbc12
-00000000-0000-0000-0000-000000000000	135	6c47ezptprth	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:12:25.732555+00	2025-12-16 20:12:25.732555+00	\N	418fdaaa-3a9f-4f81-ac39-fd474e71ad2e
-00000000-0000-0000-0000-000000000000	136	fgp2u47qrnyl	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:12:41.919459+00	2025-12-16 20:12:41.919459+00	\N	d00ce502-8399-4bde-9c67-b98faec65975
-00000000-0000-0000-0000-000000000000	137	7entasc53tj3	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:12:47.082277+00	2025-12-16 20:12:47.082277+00	\N	c91c70dc-f9a6-46d7-babf-3de88e22de86
-00000000-0000-0000-0000-000000000000	141	wdkulmup5lad	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:33:31.26256+00	2025-12-16 20:33:31.26256+00	\N	ff69b46d-ec80-4a6f-a790-11c558d66ab4
-00000000-0000-0000-0000-000000000000	142	jmovxyh7f3zc	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:34:04.805008+00	2025-12-16 20:34:04.805008+00	\N	53ee2736-b794-4803-9566-9c056eb60eeb
-00000000-0000-0000-0000-000000000000	146	wwrrkxek52ef	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:40:56.60997+00	2025-12-16 20:40:56.60997+00	\N	cf4703b8-0afe-47d0-afcc-5391ebbd51ad
-00000000-0000-0000-0000-000000000000	148	3e362ilzkwhd	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:48:23.507907+00	2025-12-16 21:48:23.507907+00	\N	a635dab5-199d-43bc-a60e-0db13d285b1e
-00000000-0000-0000-0000-000000000000	149	lqi2cc7nl7ms	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:48:30.570958+00	2025-12-16 21:48:30.570958+00	\N	f91c257c-57d4-402c-95a6-74ebdb2fefe9
-00000000-0000-0000-0000-000000000000	150	m74kxng3vzg7	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:48:48.865108+00	2025-12-16 21:48:48.865108+00	\N	07b2a043-bd6c-4dd9-ab72-653ca0e8264b
-00000000-0000-0000-0000-000000000000	151	744uuq7ycqc5	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:49:01.692605+00	2025-12-16 21:49:01.692605+00	\N	05fbd009-da2b-40de-9715-14689ee38bbf
-00000000-0000-0000-0000-000000000000	152	bou6gblg2vxm	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:49:57.773728+00	2025-12-16 21:49:57.773728+00	\N	5ab020b2-d4cf-4c56-bb4e-7d200f846a0a
-00000000-0000-0000-0000-000000000000	156	fifty3izqeu7	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:55:31.671379+00	2025-12-16 21:55:31.671379+00	\N	6e8e1639-70e0-43cf-863f-bc999594db7e
-00000000-0000-0000-0000-000000000000	157	xthwr2bkjkjx	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:55:41.324681+00	2025-12-16 21:55:41.324681+00	\N	acba6cb5-24f5-474b-804b-709038219cd2
-00000000-0000-0000-0000-000000000000	41	xik2yxfa6klm	6ceb2c46-4def-4cc2-9306-fade1ce435eb	f	2025-12-16 08:32:57.985483+00	2025-12-16 08:32:57.985483+00	\N	d0063372-2bb4-4313-80ad-abf5bf954fbb
-00000000-0000-0000-0000-000000000000	46	tcalxdhumltp	6ceb2c46-4def-4cc2-9306-fade1ce435eb	f	2025-12-16 08:41:27.043319+00	2025-12-16 08:41:27.043319+00	\N	4347e5b3-eac5-4abc-9125-66c73cddacff
-00000000-0000-0000-0000-000000000000	55	3wmkt3qnvdqw	6ceb2c46-4def-4cc2-9306-fade1ce435eb	f	2025-12-16 09:26:50.271765+00	2025-12-16 09:26:50.271765+00	\N	7fbd61d7-224e-4da3-830b-5851d044a3c9
-00000000-0000-0000-0000-000000000000	79	s5susfhvqgcs	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 11:00:33.638726+00	2025-12-16 11:00:33.638726+00	\N	2b463346-c2e2-4c8e-8ee3-07d424a608c9
-00000000-0000-0000-0000-000000000000	112	fbvek2zo4a3o	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 17:54:44.597475+00	2025-12-16 17:54:44.597475+00	\N	48f017b7-bab3-4667-8cb7-aa0bc7131068
-00000000-0000-0000-0000-000000000000	115	hsrxudamey5p	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 18:35:15.683593+00	2025-12-16 18:35:15.683593+00	\N	290cf736-ef90-4c19-82eb-7205ff2491ef
-00000000-0000-0000-0000-000000000000	116	ar3lwrm2uuh2	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 18:35:28.352794+00	2025-12-16 18:35:28.352794+00	\N	85963ab1-97bc-474a-a60b-4706767a06a3
-00000000-0000-0000-0000-000000000000	118	lxzkbrsda3zo	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 18:42:44.797023+00	2025-12-16 18:42:44.797023+00	\N	904e5cb4-085e-4b95-8138-d76de7212839
-00000000-0000-0000-0000-000000000000	122	bgabycofydwy	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:27:16.049347+00	2025-12-16 19:27:16.049347+00	\N	c2c93d25-c418-4ac6-8a2d-7217f57fa45c
-00000000-0000-0000-0000-000000000000	123	h4ekquesy6vf	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:27:20.008239+00	2025-12-16 19:27:20.008239+00	\N	f75633c1-508c-4c94-8ea6-ab488cf2e7c9
-00000000-0000-0000-0000-000000000000	126	tcrhkxqyimoy	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 19:59:59.536378+00	2025-12-16 19:59:59.536378+00	\N	775bacb3-79f8-4945-8cb7-f615784d3f75
-00000000-0000-0000-0000-000000000000	129	ugvlthr2moge	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:07:58.154914+00	2025-12-16 20:07:58.154914+00	\N	507cc712-8475-4134-8bb4-80a1254d5cab
-00000000-0000-0000-0000-000000000000	130	5ndhjftonsp3	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:08:10.343603+00	2025-12-16 20:08:10.343603+00	\N	988279f9-a16f-4846-bde5-bd9ebe8b9a81
-00000000-0000-0000-0000-000000000000	138	2ghkly5ynie5	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:21:58.664799+00	2025-12-16 20:21:58.664799+00	\N	521a032f-e615-47fe-96ca-5823c5ef56a5
-00000000-0000-0000-0000-000000000000	139	h5sb4fmm75kw	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:22:02.734213+00	2025-12-16 20:22:02.734213+00	\N	541e52ef-88f1-45dd-8300-158646c92118
-00000000-0000-0000-0000-000000000000	140	tw4y3jpn626g	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 20:22:11.970021+00	2025-12-16 20:22:11.970021+00	\N	a6f86fc0-0392-42fb-b756-dc73c90628c8
-00000000-0000-0000-0000-000000000000	147	4of2mrbdlsb4	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:38:55.790712+00	2025-12-16 21:38:55.790712+00	\N	30a559c3-fa31-40ef-a52e-7b0153cbfe8f
-00000000-0000-0000-0000-000000000000	143	wyu2gf7mucub	d0dbc613-192c-4ad5-bef4-88b950495282	t	2025-12-16 20:38:28.126414+00	2025-12-16 21:52:10.856099+00	\N	38f83a08-9be6-4759-96b5-9562ce33f4ce
-00000000-0000-0000-0000-000000000000	153	utacgf77jo7h	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:52:10.861655+00	2025-12-16 21:52:10.861655+00	wyu2gf7mucub	38f83a08-9be6-4759-96b5-9562ce33f4ce
-00000000-0000-0000-0000-000000000000	154	rodgonropgvk	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:52:11.144942+00	2025-12-16 21:52:11.144942+00	\N	1e155d72-4841-4cd6-a89b-022d9a7b0701
-00000000-0000-0000-0000-000000000000	155	wznzvcd3o7qe	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 21:52:17.848827+00	2025-12-16 21:52:17.848827+00	\N	18266d21-3ab0-467d-8b18-b9013c379eda
-00000000-0000-0000-0000-000000000000	158	ub4udhjcit6x	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 22:36:14.30895+00	2025-12-16 22:36:14.30895+00	\N	24cdbe49-d337-423f-92fe-2fe44db8dab1
-00000000-0000-0000-0000-000000000000	159	p5tyemczesb3	d0dbc613-192c-4ad5-bef4-88b950495282	f	2025-12-16 22:36:24.439419+00	2025-12-16 22:36:24.439419+00	\N	c7bf0c3e-f346-4a5b-aab3-a12d1c0ded44
+00000000-0000-0000-0000-000000000000	167	bxgt3auhmqeq	150d7866-d014-4d4a-b246-ff6a0d42e9d1	f	2025-12-17 01:43:37.120388+00	2025-12-17 01:43:37.120388+00	\N	b4033806-7472-469e-accb-c7d3faa8e392
+00000000-0000-0000-0000-000000000000	168	7thzxw4bq2pg	150d7866-d014-4d4a-b246-ff6a0d42e9d1	f	2025-12-17 01:43:48.662816+00	2025-12-17 01:43:48.662816+00	\N	751325fa-fb90-4a41-8766-576eedd64bb8
+00000000-0000-0000-0000-000000000000	170	pprehitthdmc	150d7866-d014-4d4a-b246-ff6a0d42e9d1	f	2025-12-17 01:51:11.690598+00	2025-12-17 01:51:11.690598+00	\N	68751b2d-7bea-4f05-882c-86aa1f9eba34
+00000000-0000-0000-0000-000000000000	172	f7snceijzu3q	150d7866-d014-4d4a-b246-ff6a0d42e9d1	f	2025-12-17 02:07:30.802062+00	2025-12-17 02:07:30.802062+00	\N	2ea4e44b-ddf9-4cfe-b188-fe0ddb66e65f
+00000000-0000-0000-0000-000000000000	186	oo6jnpdx4m6n	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	f	2025-12-20 13:04:12.092071+00	2025-12-20 13:04:12.092071+00	\N	1deb95fc-463e-4e19-b1a3-bc9fd18d8361
+00000000-0000-0000-0000-000000000000	187	6gosyxpeo4p4	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	f	2025-12-20 13:04:40.575713+00	2025-12-20 13:04:40.575713+00	\N	f1449f74-69d7-476b-8dd4-f9eabaec1ce1
+00000000-0000-0000-0000-000000000000	294	sx4frzzxstxi	509a7ff6-bd90-4933-a322-124eeb83ff8c	f	2025-12-21 14:33:54.36876+00	2025-12-21 14:33:54.36876+00	\N	1e54e930-55db-4d85-9699-a65f62fd61b9
+00000000-0000-0000-0000-000000000000	295	7ktqxvi7dxsi	509a7ff6-bd90-4933-a322-124eeb83ff8c	f	2025-12-21 14:34:54.661476+00	2025-12-21 14:34:54.661476+00	\N	505f80d8-55d7-4723-bce5-b4a8eddf772a
+00000000-0000-0000-0000-000000000000	296	j2fdf7wrzcpu	509a7ff6-bd90-4933-a322-124eeb83ff8c	f	2025-12-21 14:35:48.645153+00	2025-12-21 14:35:48.645153+00	\N	1051d6c1-f5ea-482f-af0e-bd4b934f35fd
+00000000-0000-0000-0000-000000000000	169	3gkmkugnayk6	150d7866-d014-4d4a-b246-ff6a0d42e9d1	f	2025-12-17 01:49:21.206611+00	2025-12-17 01:49:21.206611+00	\N	1c506c8d-7a6b-44e5-a790-6a84c2bfc502
+00000000-0000-0000-0000-000000000000	171	4jgrie6yyjxr	150d7866-d014-4d4a-b246-ff6a0d42e9d1	f	2025-12-17 02:04:43.818048+00	2025-12-17 02:04:43.818048+00	\N	c4192bca-a489-40cf-acd8-75adb35c0f7b
+00000000-0000-0000-0000-000000000000	179	sktnr5gixn7y	4315c8c3-379b-455f-9d76-af9c56b96883	f	2025-12-20 08:57:57.707347+00	2025-12-20 08:57:57.707347+00	\N	4d1f6e83-9f5a-4147-bf48-6b0146b506f8
+00000000-0000-0000-0000-000000000000	180	wjkddpxndap2	4315c8c3-379b-455f-9d76-af9c56b96883	f	2025-12-20 08:58:10.987789+00	2025-12-20 08:58:10.987789+00	\N	ec94c6ee-b3ce-4d64-8752-c499d1700dba
+00000000-0000-0000-0000-000000000000	284	kaqwln3hvfxa	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	f	2025-12-21 12:10:59.757498+00	2025-12-21 12:10:59.757498+00	\N	136bb50b-9bfe-4c7e-a2c9-e29abf645cb9
+00000000-0000-0000-0000-000000000000	289	cpv2tws4td2w	4315c8c3-379b-455f-9d76-af9c56b96883	f	2025-12-21 12:19:07.530897+00	2025-12-21 12:19:07.530897+00	\N	c33adf61-b905-49ac-ac01-90d092a96d41
+00000000-0000-0000-0000-000000000000	297	ixmlmixl277p	509a7ff6-bd90-4933-a322-124eeb83ff8c	f	2025-12-21 14:37:10.234501+00	2025-12-21 14:37:10.234501+00	\N	08f21894-2985-4d8f-a0a9-96e371ec765e
 \.
 
 
@@ -3880,55 +4015,22 @@ COPY auth.schema_migrations (version) FROM stdin;
 --
 
 COPY auth.sessions (id, user_id, created_at, updated_at, factor_id, aal, not_after, refreshed_at, user_agent, ip, tag, oauth_client_id, refresh_token_hmac_key, refresh_token_counter, scopes) FROM stdin;
-0630c0b5-4bf4-4ca4-bcd2-3e2671bc2ac7	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 18:00:59.750287+00	2025-12-16 18:00:59.750287+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-e4154892-4f61-4e5f-a996-ba452a431510	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 18:01:41.206503+00	2025-12-16 18:01:41.206503+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-4ff9557e-dcb4-4604-839a-a7981d00a134	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 18:40:47.383593+00	2025-12-16 18:40:47.383593+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-33e27c5e-50d3-4071-82e3-f3fc492f7509	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:25:27.873161+00	2025-12-16 19:25:27.873161+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-b6b770b0-e90a-4c56-8a74-0031fa0b794a	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:25:33.73863+00	2025-12-16 19:25:33.73863+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-ddbee440-793f-4c6e-b2a7-831520547225	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:25:46.586063+00	2025-12-16 19:25:46.586063+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-86ca007c-7bd1-4205-b762-dfd2213f3b10	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:36:03.226027+00	2025-12-16 19:36:03.226027+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-a3153e81-f8d5-4d31-8c61-bf279f3bc457	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:36:26.798604+00	2025-12-16 19:36:26.798604+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-652cdd7f-1c4f-40db-812c-afbc9ed0e8a5	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:01:09.020536+00	2025-12-16 20:01:09.020536+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-ce3d27b8-41c0-4bfb-ad22-7faacbf9e5db	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:01:16.924824+00	2025-12-16 20:01:16.924824+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-7bbbedd2-a769-4c83-96a0-5efe422ef158	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:11:59.679562+00	2025-12-16 20:11:59.679562+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-541ade68-68df-4e60-ab85-581718167985	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:12:05.096615+00	2025-12-16 20:12:05.096615+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-fb57002b-442d-4f07-bd10-17a9e63131e6	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:12:12.98186+00	2025-12-16 20:12:12.98186+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-5cbee71d-4d3f-448e-a2cd-ac2498fbbc12	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:12:18.165346+00	2025-12-16 20:12:18.165346+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-418fdaaa-3a9f-4f81-ac39-fd474e71ad2e	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:12:25.731505+00	2025-12-16 20:12:25.731505+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-d00ce502-8399-4bde-9c67-b98faec65975	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:12:41.917665+00	2025-12-16 20:12:41.917665+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-c91c70dc-f9a6-46d7-babf-3de88e22de86	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:12:47.081237+00	2025-12-16 20:12:47.081237+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-ff69b46d-ec80-4a6f-a790-11c558d66ab4	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:33:31.232048+00	2025-12-16 20:33:31.232048+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-53ee2736-b794-4803-9566-9c056eb60eeb	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:34:04.803714+00	2025-12-16 20:34:04.803714+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-cf4703b8-0afe-47d0-afcc-5391ebbd51ad	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:40:56.607793+00	2025-12-16 20:40:56.607793+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36	161.142.154.76	\N	\N	\N	\N	\N
-a635dab5-199d-43bc-a60e-0db13d285b1e	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:48:23.478482+00	2025-12-16 21:48:23.478482+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36	161.142.154.76	\N	\N	\N	\N	\N
-f91c257c-57d4-402c-95a6-74ebdb2fefe9	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:48:30.569362+00	2025-12-16 21:48:30.569362+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36	161.142.154.76	\N	\N	\N	\N	\N
-07b2a043-bd6c-4dd9-ab72-653ca0e8264b	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:48:48.863369+00	2025-12-16 21:48:48.863369+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36	161.142.154.76	\N	\N	\N	\N	\N
-05fbd009-da2b-40de-9715-14689ee38bbf	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:49:01.691419+00	2025-12-16 21:49:01.691419+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36	161.142.154.76	\N	\N	\N	\N	\N
-5ab020b2-d4cf-4c56-bb4e-7d200f846a0a	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:49:57.771782+00	2025-12-16 21:49:57.771782+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36	161.142.154.76	\N	\N	\N	\N	\N
-6e8e1639-70e0-43cf-863f-bc999594db7e	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:55:31.655729+00	2025-12-16 21:55:31.655729+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-d0063372-2bb4-4313-80ad-abf5bf954fbb	6ceb2c46-4def-4cc2-9306-fade1ce435eb	2025-12-16 08:32:57.929442+00	2025-12-16 08:32:57.929442+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0	161.142.154.63	\N	\N	\N	\N	\N
-acba6cb5-24f5-474b-804b-709038219cd2	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:55:41.322558+00	2025-12-16 21:55:41.322558+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-4347e5b3-eac5-4abc-9125-66c73cddacff	6ceb2c46-4def-4cc2-9306-fade1ce435eb	2025-12-16 08:41:27.041072+00	2025-12-16 08:41:27.041072+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0	161.142.154.63	\N	\N	\N	\N	\N
-7fbd61d7-224e-4da3-830b-5851d044a3c9	6ceb2c46-4def-4cc2-9306-fade1ce435eb	2025-12-16 09:26:50.27045+00	2025-12-16 09:26:50.27045+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-2b463346-c2e2-4c8e-8ee3-07d424a608c9	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 11:00:33.602826+00	2025-12-16 11:00:33.602826+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-48f017b7-bab3-4667-8cb7-aa0bc7131068	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 17:54:44.596151+00	2025-12-16 17:54:44.596151+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-290cf736-ef90-4c19-82eb-7205ff2491ef	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 18:35:15.639966+00	2025-12-16 18:35:15.639966+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-85963ab1-97bc-474a-a60b-4706767a06a3	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 18:35:28.351387+00	2025-12-16 18:35:28.351387+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-904e5cb4-085e-4b95-8138-d76de7212839	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 18:42:44.754219+00	2025-12-16 18:42:44.754219+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-c2c93d25-c418-4ac6-8a2d-7217f57fa45c	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:27:16.046557+00	2025-12-16 19:27:16.046557+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-f75633c1-508c-4c94-8ea6-ab488cf2e7c9	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:27:20.007081+00	2025-12-16 19:27:20.007081+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-775bacb3-79f8-4945-8cb7-f615784d3f75	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 19:59:59.521117+00	2025-12-16 19:59:59.521117+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-507cc712-8475-4134-8bb4-80a1254d5cab	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:07:58.150679+00	2025-12-16 20:07:58.150679+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-988279f9-a16f-4846-bde5-bd9ebe8b9a81	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:08:10.342239+00	2025-12-16 20:08:10.342239+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-521a032f-e615-47fe-96ca-5823c5ef56a5	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:21:58.653642+00	2025-12-16 20:21:58.653642+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-541e52ef-88f1-45dd-8300-158646c92118	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:22:02.733036+00	2025-12-16 20:22:02.733036+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-a6f86fc0-0392-42fb-b756-dc73c90628c8	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:22:11.968705+00	2025-12-16 20:22:11.968705+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-30a559c3-fa31-40ef-a52e-7b0153cbfe8f	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:38:55.76565+00	2025-12-16 21:38:55.76565+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36	161.142.154.76	\N	\N	\N	\N	\N
-38f83a08-9be6-4759-96b5-9562ce33f4ce	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 20:38:28.123762+00	2025-12-16 21:52:10.869048+00	\N	aal1	\N	2025-12-16 21:52:10.868934	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-1e155d72-4841-4cd6-a89b-022d9a7b0701	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:52:11.141743+00	2025-12-16 21:52:11.141743+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-18266d21-3ab0-467d-8b18-b9013c379eda	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 21:52:17.847841+00	2025-12-16 21:52:17.847841+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-24cdbe49-d337-423f-92fe-2fe44db8dab1	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 22:36:14.291821+00	2025-12-16 22:36:14.291821+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
-c7bf0c3e-f346-4a5b-aab3-a12d1c0ded44	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 22:36:24.437098+00	2025-12-16 22:36:24.437098+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0	161.142.154.76	\N	\N	\N	\N	\N
+b4033806-7472-469e-accb-c7d3faa8e392	150d7866-d014-4d4a-b246-ff6a0d42e9d1	2025-12-17 01:43:37.092498+00	2025-12-17 01:43:37.092498+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+751325fa-fb90-4a41-8766-576eedd64bb8	150d7866-d014-4d4a-b246-ff6a0d42e9d1	2025-12-17 01:43:48.660787+00	2025-12-17 01:43:48.660787+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+68751b2d-7bea-4f05-882c-86aa1f9eba34	150d7866-d014-4d4a-b246-ff6a0d42e9d1	2025-12-17 01:51:11.668896+00	2025-12-17 01:51:11.668896+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+2ea4e44b-ddf9-4cfe-b188-fe0ddb66e65f	150d7866-d014-4d4a-b246-ff6a0d42e9d1	2025-12-17 02:07:30.799006+00	2025-12-17 02:07:30.799006+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+1deb95fc-463e-4e19-b1a3-bc9fd18d8361	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	2025-12-20 13:04:12.0679+00	2025-12-20 13:04:12.0679+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+f1449f74-69d7-476b-8dd4-f9eabaec1ce1	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	2025-12-20 13:04:40.574674+00	2025-12-20 13:04:40.574674+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+08f21894-2985-4d8f-a0a9-96e371ec765e	509a7ff6-bd90-4933-a322-124eeb83ff8c	2025-12-21 14:37:10.232627+00	2025-12-21 14:37:10.232627+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36	124.93.200.158	\N	\N	\N	\N	\N
+1c506c8d-7a6b-44e5-a790-6a84c2bfc502	150d7866-d014-4d4a-b246-ff6a0d42e9d1	2025-12-17 01:49:21.202702+00	2025-12-17 01:49:21.202702+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+c4192bca-a489-40cf-acd8-75adb35c0f7b	150d7866-d014-4d4a-b246-ff6a0d42e9d1	2025-12-17 02:04:43.772054+00	2025-12-17 02:04:43.772054+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+136bb50b-9bfe-4c7e-a2c9-e29abf645cb9	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	2025-12-21 12:10:59.756183+00	2025-12-21 12:10:59.756183+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+4d1f6e83-9f5a-4147-bf48-6b0146b506f8	4315c8c3-379b-455f-9d76-af9c56b96883	2025-12-20 08:57:57.69048+00	2025-12-20 08:57:57.69048+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+ec94c6ee-b3ce-4d64-8752-c499d1700dba	4315c8c3-379b-455f-9d76-af9c56b96883	2025-12-20 08:58:10.986478+00	2025-12-20 08:58:10.986478+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36	161.142.154.63	\N	\N	\N	\N	\N
+c33adf61-b905-49ac-ac01-90d092a96d41	4315c8c3-379b-455f-9d76-af9c56b96883	2025-12-21 12:19:07.529578+00	2025-12-21 12:19:07.529578+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0	161.142.154.63	\N	\N	\N	\N	\N
+1e54e930-55db-4d85-9699-a65f62fd61b9	509a7ff6-bd90-4933-a322-124eeb83ff8c	2025-12-21 14:33:54.35456+00	2025-12-21 14:33:54.35456+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36	103.151.172.47	\N	\N	\N	\N	\N
+505f80d8-55d7-4723-bce5-b4a8eddf772a	509a7ff6-bd90-4933-a322-124eeb83ff8c	2025-12-21 14:34:54.659352+00	2025-12-21 14:34:54.659352+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36	103.151.172.47	\N	\N	\N	\N	\N
+1051d6c1-f5ea-482f-af0e-bd4b934f35fd	509a7ff6-bd90-4933-a322-124eeb83ff8c	2025-12-21 14:35:48.643941+00	2025-12-21 14:35:48.643941+00	\N	aal1	\N	\N	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36	103.151.172.47	\N	\N	\N	\N	\N
 \.
 
 
@@ -3953,10 +4055,13 @@ COPY auth.sso_providers (id, resource_id, created_at, updated_at, disabled) FROM
 --
 
 COPY auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, invited_at, confirmation_token, confirmation_sent_at, recovery_token, recovery_sent_at, email_change_token_new, email_change, email_change_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at, phone, phone_confirmed_at, phone_change, phone_change_token, phone_change_sent_at, email_change_token_current, email_change_confirm_status, banned_until, reauthentication_token, reauthentication_sent_at, is_sso_user, deleted_at, is_anonymous) FROM stdin;
-00000000-0000-0000-0000-000000000000	6ceb2c46-4def-4cc2-9306-fade1ce435eb	authenticated	authenticated	a199958@siswa.ukm.edu.my	$2a$10$s21TMm8WLpdHN7hyVaY8tOHHj1DcSZt3P3vVqNeGMRusvLNzyDYAe	2025-12-15 16:04:10.427714+00	\N		\N		\N			\N	2025-12-16 09:26:50.270351+00	{"provider": "email", "providers": ["email"]}	{"sub": "6ceb2c46-4def-4cc2-9306-fade1ce435eb", "role": "student", "email": "a199958@siswa.ukm.edu.my", "phone": "+60 11-6093 9082", "full_name": "Zhang Peigen", "student_id": "A199958", "email_verified": true, "phone_verified": false}	\N	2025-12-15 16:04:10.405561+00	2025-12-16 09:26:50.272784+00	\N	\N			\N		0	\N		\N	f	\N	f
-00000000-0000-0000-0000-000000000000	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	authenticated	authenticated	yurkibacon@gmail.com	$2a$10$ebWyQzFFirDZGUkYV7Vuye7QctohdFdSV3Dv9Kn4BBj7KnESPgmaW	2025-12-16 08:40:20.192046+00	\N		\N		\N			\N	2025-12-16 08:41:52.110657+00	{"provider": "email", "providers": ["email"]}	{"sub": "9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e", "role": "landlord", "email": "yurkibacon@gmail.com", "phone": "+60 1160939082", "full_name": "Yuki Zhang", "email_verified": true, "phone_verified": false, "landlord_licenceID": "A199958"}	\N	2025-12-16 08:40:20.152604+00	2025-12-16 08:41:52.121351+00	\N	\N			\N		0	\N		\N	f	\N	f
-00000000-0000-0000-0000-000000000000	d0dbc613-192c-4ad5-bef4-88b950495282	authenticated	authenticated	blueeeke@outlook.com	$2a$10$K.bCmXtkKhIws4SkQdPKpuP2vKP1eS3Z4HIm3ehkW0GYhlqAira0a	2025-12-16 11:00:33.574346+00	\N		\N		\N			\N	2025-12-16 22:36:24.436949+00	{"provider": "email", "providers": ["email"]}	{"sub": "d0dbc613-192c-4ad5-bef4-88b950495282", "role": "student", "email": "blueeeke@outlook.com", "phone": "+60142854882", "full_name": "Blue", "student_id": "A188232", "email_verified": true, "phone_verified": false}	\N	2025-12-16 11:00:33.423261+00	2025-12-16 22:36:24.440435+00	\N	\N			\N		0	\N		\N	f	\N	f
-00000000-0000-0000-0000-000000000000	59de08d4-6a95-4c6f-b59d-851dfb04c6be	authenticated	authenticated	a199722@siswa.ukm.edu.my	$2a$10$T4BpX7VXGjw.duMmf3g1yuBnEWjtPTkkm1pRA96GyAVaNzRko.3sO	2025-12-15 15:37:57.373246+00	\N		\N		\N			\N	2025-12-16 22:41:29.901859+00	{"provider": "email", "providers": ["email"]}	{"sub": "59de08d4-6a95-4c6f-b59d-851dfb04c6be", "role": "landlord", "email": "a199722@siswa.ukm.edu.my", "full_name": "Che Haoming", "email_verified": true, "phone_verified": false}	\N	2025-12-15 15:37:57.355504+00	2025-12-16 22:41:29.909246+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	509a7ff6-bd90-4933-a322-124eeb83ff8c	authenticated	authenticated	loveyou@outlook.com	$2a$10$1k7T4hThnPa4x1eqBJVyo.YbWvvlCieg0s7/PDHAK7T0ksq5rbeTK	2025-12-21 14:33:54.343169+00	\N		\N		\N			\N	2025-12-21 14:37:10.232507+00	{"provider": "email", "providers": ["email"]}	{"sub": "509a7ff6-bd90-4933-a322-124eeb83ff8c", "role": "student", "email": "loveyou@outlook.com", "phone": "+86 18756947992", "full_name": "MaiHami", "student_id": "2205645803", "email_verified": true, "phone_verified": false}	\N	2025-12-21 14:33:54.271195+00	2025-12-21 14:37:10.236004+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	4315c8c3-379b-455f-9d76-af9c56b96883	authenticated	authenticated	a199538@siswa.ukm.edu.my	$2a$10$q8P/RLLKF4f..C83.FNSpuXCx/6KLQIJksb9lt4Bop2qPmrpabutO	2025-12-20 08:57:57.676519+00	\N		\N		\N			\N	2025-12-21 12:19:07.529482+00	{"provider": "email", "providers": ["email"]}	{"sub": "4315c8c3-379b-455f-9d76-af9c56b96883", "role": "landlord", "email": "a199538@siswa.ukm.edu.my", "phone": "+60 17-7096167", "full_name": "Liu Zetong", "email_verified": true, "phone_verified": false, "landlord_licenceID": "12121"}	\N	2025-12-20 08:57:57.605434+00	2025-12-21 12:19:07.531863+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	d0dbc613-192c-4ad5-bef4-88b950495282	authenticated	authenticated	blueeeke@outlook.com	$2a$10$K.bCmXtkKhIws4SkQdPKpuP2vKP1eS3Z4HIm3ehkW0GYhlqAira0a	2025-12-16 11:00:33.574346+00	\N		\N		\N			\N	2025-12-21 18:10:52.690086+00	{"provider": "email", "providers": ["email"]}	{"sub": "d0dbc613-192c-4ad5-bef4-88b950495282", "role": "student", "email": "blueeeke@outlook.com", "phone": "+60142854882", "full_name": "Blue", "student_id": "A188232", "email_verified": true, "phone_verified": false}	\N	2025-12-16 11:00:33.423261+00	2025-12-21 18:10:52.693917+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	6ceb2c46-4def-4cc2-9306-fade1ce435eb	authenticated	authenticated	a199958@siswa.ukm.edu.my	$2a$10$s21TMm8WLpdHN7hyVaY8tOHHj1DcSZt3P3vVqNeGMRusvLNzyDYAe	2025-12-15 16:04:10.427714+00	\N		\N		\N			\N	2025-12-21 18:11:06.370718+00	{"provider": "email", "providers": ["email"]}	{"sub": "6ceb2c46-4def-4cc2-9306-fade1ce435eb", "role": "student", "email": "a199958@siswa.ukm.edu.my", "phone": "+60 11-6093 9082", "full_name": "Zhang Peigen", "student_id": "A199958", "email_verified": true, "phone_verified": false}	\N	2025-12-15 16:04:10.405561+00	2025-12-21 18:11:06.372953+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	authenticated	authenticated	yurkibacon@gmail.com	$2a$10$ebWyQzFFirDZGUkYV7Vuye7QctohdFdSV3Dv9Kn4BBj7KnESPgmaW	2025-12-16 08:40:20.192046+00	\N		\N		\N			\N	2025-12-21 12:10:59.756089+00	{"provider": "email", "providers": ["email"]}	{"sub": "9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e", "role": "landlord", "email": "yurkibacon@gmail.com", "phone": "+60 1160939082", "full_name": "Yuki Zhang", "email_verified": true, "phone_verified": false, "landlord_licenceID": "A199958"}	\N	2025-12-16 08:40:20.152604+00	2025-12-21 12:10:59.759814+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	59de08d4-6a95-4c6f-b59d-851dfb04c6be	authenticated	authenticated	a199722@siswa.ukm.edu.my	$2a$10$T4BpX7VXGjw.duMmf3g1yuBnEWjtPTkkm1pRA96GyAVaNzRko.3sO	2025-12-15 15:37:57.373246+00	\N		\N		\N			\N	2025-12-21 17:30:46.684499+00	{"provider": "email", "providers": ["email"]}	{"sub": "59de08d4-6a95-4c6f-b59d-851dfb04c6be", "role": "landlord", "email": "a199722@siswa.ukm.edu.my", "full_name": "Che Haoming", "email_verified": true, "phone_verified": false}	\N	2025-12-15 15:37:57.355504+00	2025-12-21 17:30:46.689076+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	150d7866-d014-4d4a-b246-ff6a0d42e9d1	authenticated	authenticated	199538@siswa.ukm.edu.my	$2a$10$bW0dJ58fN2GNzRIv/viDROgR37.ikoyYM4NaB3rFdZDlS9JJMKo/6	2025-12-17 01:43:37.072451+00	\N		\N		\N			\N	2025-12-17 02:07:30.798246+00	{"provider": "email", "providers": ["email"]}	{"sub": "150d7866-d014-4d4a-b246-ff6a0d42e9d1", "role": "landlord", "email": "199538@siswa.ukm.edu.my", "full_name": "Liu Zetong", "email_verified": true, "phone_verified": false}	\N	2025-12-17 01:43:37.003412+00	2025-12-17 02:07:30.803506+00	\N	\N			\N		0	\N		\N	f	\N	f
 \.
 
 
@@ -3964,7 +4069,9 @@ COPY auth.users (instance_id, id, aud, role, email, encrypted_password, email_co
 -- Data for Name: applications; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.applications (id, property_id, applicant_id, property_owner_id, message, documents, status, created_at, updated_at) FROM stdin;
+COPY public.applications (id, property_id, applicant_id, property_owner_id, message, documents, status, created_at, updated_at, appointment_at, feedback, contract_url, contract_status, payment_status, stage, contract_signed_tenant, contract_signed_landlord) FROM stdin;
+17f83a33-4cec-4c07-83b0-ba4271618c4f	b2ee0c3e-0a71-4bcd-954d-8530645d5229	6ceb2c46-4def-4cc2-9306-fade1ce435eb	d0dbc613-192c-4ad5-bef4-88b950495282	Dear Landlord, I am writing to apply for the Evo Soho Suites studio unit in Bandar Baru Bangi. I am an undergraduate student at Universiti Kebangsaan Malaysia (UKM), conveniently located nearby. I value cleanliness highly and always maintain a tidy living space. I do not cook at home, preferring to eat out, which means minimal use of the kitchen and no cooking odors or mess. I am available to move in January 2026 and would greatly appreciate the opportunity to meet in person to discuss further. I am free to view the property on December 24th at 3:50 PM downstairs. Thank you for considering my application. I look forward to hearing from you. Best regards,	[]	completed	2025-12-21 10:38:13.924615+00	2025-12-21 10:38:13.924615+00	2025-12-24 15:50:00+00	ok, I have time to see u, see u that time.	https://tqeobopxnjywbktyxfhb.supabase.co/storage/v1/object/public/files/contracts/17f83a33-4cec-4c07-83b0-ba4271618c4f/tenant_signed.pdf	completed	paid	completed	t	t
+02b861e0-b3c9-4b7f-99c5-df49f729c931	66ca39eb-1f69-423c-b2c1-9f209298328c	6ceb2c46-4def-4cc2-9306-fade1ce435eb	d0dbc613-192c-4ad5-bef4-88b950495282	121212	[]	accepted	2025-12-21 12:19:53.31856+00	2025-12-21 12:19:53.31856+00	2026-01-04 00:23:00+00	1212	https://tqeobopxnjywbktyxfhb.supabase.co/storage/v1/object/public/files/contracts/02b861e0-b3c9-4b7f-99c5-df49f729c931/tenant_signed.pdf	completed	unpaid	processing	t	t
 \.
 
 
@@ -3973,6 +4080,7 @@ COPY public.applications (id, property_id, applicant_id, property_owner_id, mess
 --
 
 COPY public.complaints (id, reporter_id, target_type, target_id, category, description, status, created_at) FROM stdin;
+92dac03a-596d-4a9c-a537-07a26af068c9	d0dbc613-192c-4ad5-bef4-88b950495282	property	3a6367ec-8d8b-4ed8-b2d9-eceb019315d0	False Information	The information is incorrect. It is recommended to delete this property.	open	2025-12-21 18:09:32.654818+00
 \.
 
 
@@ -3981,6 +4089,39 @@ COPY public.complaints (id, reporter_id, target_type, target_id, category, descr
 --
 
 COPY public.favorites (user_id, property_id, created_at) FROM stdin;
+d0dbc613-192c-4ad5-bef4-88b950495282	b2ee0c3e-0a71-4bcd-954d-8530645d5229	2025-12-16 23:14:29.32218+00
+6ceb2c46-4def-4cc2-9306-fade1ce435eb	ba8ae63f-4ade-4159-955f-91e2db67e97b	2025-12-21 05:44:38.213065+00
+6ceb2c46-4def-4cc2-9306-fade1ce435eb	186c0667-770a-478c-834e-aabc3608f33c	2025-12-21 05:44:39.421618+00
+6ceb2c46-4def-4cc2-9306-fade1ce435eb	b2ee0c3e-0a71-4bcd-954d-8530645d5229	2025-12-21 08:01:02.977925+00
+d0dbc613-192c-4ad5-bef4-88b950495282	66ca39eb-1f69-423c-b2c1-9f209298328c	2025-12-21 14:42:19.045997+00
+\.
+
+
+--
+-- Data for Name: notifications; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.notifications (id, user_id, type, title, content, is_read, related_link, created_at) FROM stdin;
+8dd167c9-f79b-4dbe-857b-ee14dcb6a032	d0dbc613-192c-4ad5-bef4-88b950495282	application	New Rental Application	You have received a new application for Modern Studio Unit @ Evo SoHo Bangi	f	/host-dashboard	2025-12-21 08:16:42.826333+00
+6640ba65-d9f1-4208-89ca-1bfeecc90cb3	6ceb2c46-4def-4cc2-9306-fade1ce435eb	application	Application Accepted	Your application for "Modern Studio Unit @ Evo SoHo Bangi" has been accepted. Host message: "ok, I have time to see u, see u that time."	f	/applications	2025-12-21 08:47:53.600325+00
+b3d85683-b6c4-4b2d-904b-4247bd1806ce	d0dbc613-192c-4ad5-bef4-88b950495282	application	New Rental Application	You have received a new application for Basic Unit Savanna	f	/host-dashboard	2025-12-21 10:31:21.704109+00
+cbc6a280-c92f-43c8-bd78-4ccc8f111456	6ceb2c46-4def-4cc2-9306-fade1ce435eb	application	Application Rejected	Your application for "Basic Unit Savanna" has been rejected. Host message: "1212"	f	/applications	2025-12-21 10:31:44.812603+00
+9a6b7617-c0db-476a-86ad-e4094b78acb5	d0dbc613-192c-4ad5-bef4-88b950495282	application	New Rental Application	You have received a new application for Modern Studio Unit @ Evo SoHo Bangi	f	/host-dashboard	2025-12-21 10:38:13.924615+00
+894131a9-dede-4e01-9a59-18bbd174e542	6ceb2c46-4def-4cc2-9306-fade1ce435eb	application	Application Completed	Your application for "Modern Studio Unit @ Evo SoHo Bangi" has been completed. Host message: "ok, I have time to see u, see u that time."	f	/applications	2025-12-21 11:55:44.645193+00
+73605147-86a5-4998-9ebe-af6d9bf7eca1	d0dbc613-192c-4ad5-bef4-88b950495282	application	New Rental Application	You have received a new application for Basic Unit Savanna	f	/host-dashboard	2025-12-21 12:19:53.31856+00
+7ffbc6db-516c-49eb-945a-41e0c47c43f5	6ceb2c46-4def-4cc2-9306-fade1ce435eb	application	Application Accepted	Your application for "Basic Unit Savanna" has been accepted. Host message: "1212"	f	/applications	2025-12-21 12:20:22.577637+00
+f92e9420-48cd-43e6-98df-8097639fb014	6ceb2c46-4def-4cc2-9306-fade1ce435eb	application	Application Accepted	Your application for "Modern Studio Unit @ Evo SoHo Bangi" has been accepted. Host message: "ok, I have time to see u, see u that time."	f	/applicationsype	2025-12-21 10:38:46.774323+00
+c2a6d2aa-cf3d-4c42-bb8d-b7e30ead9fc1	59de08d4-6a95-4c6f-b59d-851dfb04c6be	system	Complaint Alert	New complaint: False Information	f	/admin/complaints	2025-12-21 18:09:32.654818+00
+6476d592-3795-4b40-adb1-a0926ab5072c	d0dbc613-192c-4ad5-bef4-88b950495282	system	Complaint Received	Complaint against: 12	f	/host-dashboard	2025-12-21 18:09:32.654818+00
+05815cd1-9a1b-4148-895a-6fd9645f62fc	d0dbc613-192c-4ad5-bef4-88b950495282	system	Report Submitted	We received your report.	f	/profile	2025-12-21 18:09:32.654818+00
+\.
+
+
+--
+-- Data for Name: payments; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.payments (id, application_id, payer_id, amount, currency, created_at) FROM stdin;
 \.
 
 
@@ -4036,11 +4177,13 @@ COPY public.uploaded_files (id, file_url, file_type, file_name, file_size, uploa
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.users (id, email, phone, full_name, role, uploadfile_id, avatar_url, student_id, agency_name, agency_license, is_verified, created_at, updated_at, landlord_licenceid) FROM stdin;
-6ceb2c46-4def-4cc2-9306-fade1ce435eb	a199958@siswa.ukm.edu.my	+60 11-6093 9082	Zhang Peigen	student	\N	\N	A199958	\N	\N	f	2025-12-15 16:04:10.404441+00	2025-12-15 16:04:10.404441+00	\N
-9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	yurkibacon@gmail.com	+60 1160939082	Yuki Zhang	landlord	\N	\N	\N	\N	\N	f	2025-12-16 08:40:20.152249+00	2025-12-16 08:40:20.152249+00	A199958
-59de08d4-6a95-4c6f-b59d-851dfb04c6be	a199722@siswa.ukm.edu.my	+60 14-285 4882	Che Haoming	admin	\N	\N	\N	\N	\N	f	2025-12-15 15:37:57.35512+00	2025-12-15 15:37:57.35512+00	\N
-d0dbc613-192c-4ad5-bef4-88b950495282	blueeeke@outlook.com	+60142854882	Blue	landlord	\N	\N		\N	\N	f	2025-12-16 11:00:33.415141+00	2025-12-16 11:00:33.415141+00	landlord
+COPY public.users (id, email, phone, full_name, role, uploadfile_id, avatar_url, student_id, agency_name, agency_license, is_verified, created_at, updated_at, landlord_licenceid, terms_accepted_at) FROM stdin;
+9e4cc6e5-0de7-428f-b122-29ad7f9b8a8e	yurkibacon@gmail.com	+60 1160939082	Yuki Zhang	landlord	\N	\N	\N	\N	\N	f	2025-12-16 08:40:20.152249+00	2025-12-16 08:40:20.152249+00	A199958	2025-12-21 03:52:51.436038+00
+150d7866-d014-4d4a-b246-ff6a0d42e9d1	199538@siswa.ukm.edu.my	\N	Liu Zetong	landlord	\N	\N	\N	\N	\N	f	2025-12-17 01:43:37.003048+00	2025-12-17 01:43:37.003048+00	\N	2025-12-21 03:52:51.436038+00
+4315c8c3-379b-455f-9d76-af9c56b96883	a199538@siswa.ukm.edu.my	+60 17-7096167	Liu Zetong	landlord	\N	\N	\N	\N	\N	f	2025-12-20 08:57:57.604255+00	2025-12-20 08:57:57.604255+00	12121	2025-12-21 03:52:51.436038+00
+59de08d4-6a95-4c6f-b59d-851dfb04c6be	a199722@siswa.ukm.edu.my	+60 14-285 4882	Che Haoming	admin	\N	\N	\N	\N	\N	f	2025-12-15 15:37:57.35512+00	2025-12-15 15:37:57.35512+00	\N	2025-12-21 17:30:53.684+00
+d0dbc613-192c-4ad5-bef4-88b950495282	blueeeke@outlook.com	+60142854882	Blue	landlord	\N	\N		\N	\N	f	2025-12-16 11:00:33.415141+00	2025-12-16 11:00:33.415141+00	landlord	2025-12-21 18:11:00.051+00
+6ceb2c46-4def-4cc2-9306-fade1ce435eb	a199958@siswa.ukm.edu.my	+60 11-6093 9082	Zhang Peigen	student	\N	\N	A199958	\N	\N	f	2025-12-15 16:04:10.404441+00	2025-12-15 16:04:10.404441+00	\N	2025-12-21 18:11:13.735+00
 \.
 
 
@@ -4132,6 +4275,7 @@ COPY realtime.subscription (id, subscription_id, entity, filters, claims, create
 COPY storage.buckets (id, name, owner, created_at, updated_at, public, avif_autodetection, file_size_limit, allowed_mime_types, owner_id, type) FROM stdin;
 photos	photos	\N	2025-12-15 15:05:43.395321+00	2025-12-15 15:05:43.395321+00	t	f	6291456	\N	\N	STANDARD
 avatars	avatars	\N	2025-12-16 18:22:03.330529+00	2025-12-16 18:22:03.330529+00	t	f	6291456	\N	\N	STANDARD
+files	files	\N	2025-12-21 08:59:11.597236+00	2025-12-21 08:59:11.597236+00	t	f	\N	\N	\N	STANDARD
 \.
 
 
@@ -4205,6 +4349,7 @@ COPY storage.migrations (id, name, hash, executed_at) FROM stdin;
 46	buckets-objects-grants	fedeb96d60fefd8e02ab3ded9fbde05632f84aed	2025-12-08 13:47:49.572822
 47	iceberg-table-metadata	649df56855c24d8b36dd4cc1aeb8251aa9ad42c2	2025-12-08 13:47:49.579543
 48	iceberg-catalog-ids	2666dff93346e5d04e0a878416be1d5fec345d6f	2025-12-08 13:47:49.584837
+49	buckets-objects-grants-postgres	072b1195d0d5a2f888af6b2302a1938dd94b8b3d	2025-12-20 07:15:01.51569
 \.
 
 
@@ -4229,6 +4374,12 @@ a6038322-c0df-45f5-9161-d0e5d97b364f	photos	400d8a13-f80a-4229-81e1-60ece7405dad
 5bc52b3e-d3b3-452f-a258-57f6bf7745be	photos	66ca39eb-1f69-423c-b2c1-9f209298328c/52aeb5cb-a30d-4f0a-b065-10f2a5f982f5.jpeg	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 22:21:39.097837+00	2025-12-16 22:21:39.097837+00	2025-12-16 22:21:39.097837+00	{"eTag": "\\"42d4c7b8aec0e5c4c1b1ce939ae94ad3\\"", "size": 90409, "mimetype": "image/jpeg", "cacheControl": "max-age=3600", "lastModified": "2025-12-16T22:21:40.000Z", "contentLength": 90409, "httpStatusCode": 200}	60bded60-30ed-4087-8c61-e4def197113e	d0dbc613-192c-4ad5-bef4-88b950495282	{}	2
 5f2a4b2f-762f-4298-9cfc-670fc6661abd	photos	66ca39eb-1f69-423c-b2c1-9f209298328c/e944dee8-28d9-498b-9c62-8f4be0bcbf58.jpeg	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 22:21:39.297998+00	2025-12-16 22:21:39.297998+00	2025-12-16 22:21:39.297998+00	{"eTag": "\\"b7b5443e755fe98eec83fbac974818ec\\"", "size": 19021, "mimetype": "image/jpeg", "cacheControl": "max-age=3600", "lastModified": "2025-12-16T22:21:40.000Z", "contentLength": 19021, "httpStatusCode": 200}	8a597980-bb94-475e-bb0b-29681f99c3c6	d0dbc613-192c-4ad5-bef4-88b950495282	{}	2
 e94694d7-0b08-47cb-b064-beff1d69f894	photos	66ca39eb-1f69-423c-b2c1-9f209298328c/e4d4701e-4239-4dc5-85f4-67dbebacb578.jpeg	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-16 22:21:39.481901+00	2025-12-16 22:21:39.481901+00	2025-12-16 22:21:39.481901+00	{"eTag": "\\"f3dbb5460d8d006b9877f681c92469ce\\"", "size": 11300, "mimetype": "image/jpeg", "cacheControl": "max-age=3600", "lastModified": "2025-12-16T22:21:40.000Z", "contentLength": 11300, "httpStatusCode": 200}	d329351f-3ece-42df-bcbd-743aead11723	d0dbc613-192c-4ad5-bef4-88b950495282	{}	2
+9ef24516-8766-47fa-aa94-2ed86dc99ac5	files	contracts/17f83a33-4cec-4c07-83b0-ba4271618c4f/contract_1766313561767.pdf	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-21 10:39:19.941468+00	2025-12-21 10:39:19.941468+00	2025-12-21 10:39:19.941468+00	{"eTag": "\\"a56259e1f4cf3d1c9cf80d5fc7028ab6\\"", "size": 1235331, "mimetype": "application/pdf", "cacheControl": "max-age=3600", "lastModified": "2025-12-21T10:39:20.000Z", "contentLength": 1235331, "httpStatusCode": 200}	6b6ac421-963e-461d-a5e2-cd3d1ceb7346	d0dbc613-192c-4ad5-bef4-88b950495282	{}	3
+2dfdfa83-ee0d-42b5-afc0-df7788654b3d	files	contracts/17f83a33-4cec-4c07-83b0-ba4271618c4f/tenant_signed.pdf	6ceb2c46-4def-4cc2-9306-fade1ce435eb	2025-12-21 10:40:04.230941+00	2025-12-21 11:41:31.068326+00	2025-12-21 10:40:04.230941+00	{"eTag": "\\"a56259e1f4cf3d1c9cf80d5fc7028ab6\\"", "size": 1235331, "mimetype": "application/pdf", "cacheControl": "max-age=3600", "lastModified": "2025-12-21T11:41:31.000Z", "contentLength": 1235331, "httpStatusCode": 200}	559c412d-a9f6-4437-b598-7299f6d5e196	6ceb2c46-4def-4cc2-9306-fade1ce435eb	{}	3
+b2878894-f797-4ad1-9cc9-dbb3fb26da64	files	contracts/02b861e0-b3c9-4b7f-99c5-df49f729c931/contract_1766319633186.pdf	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-21 12:20:30.547304+00	2025-12-21 12:20:30.547304+00	2025-12-21 12:20:30.547304+00	{"eTag": "\\"a56259e1f4cf3d1c9cf80d5fc7028ab6\\"", "size": 1235331, "mimetype": "application/pdf", "cacheControl": "max-age=3600", "lastModified": "2025-12-21T12:20:31.000Z", "contentLength": 1235331, "httpStatusCode": 200}	b52d2515-11cf-480a-b467-d6f6fd3ffc5c	d0dbc613-192c-4ad5-bef4-88b950495282	{}	3
+b435bc52-2348-434d-9283-0afdf5ca8eba	files	contracts/17f83a33-4cec-4c07-83b0-ba4271618c4f/landlord_signed.pdf	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-21 10:41:45.869849+00	2025-12-21 11:22:48.672936+00	2025-12-21 10:41:45.869849+00	{"eTag": "\\"a56259e1f4cf3d1c9cf80d5fc7028ab6\\"", "size": 1235331, "mimetype": "application/pdf", "cacheControl": "max-age=3600", "lastModified": "2025-12-21T11:22:49.000Z", "contentLength": 1235331, "httpStatusCode": 200}	2cbf52a8-ec9d-4f8a-b91b-842a97d7b08b	d0dbc613-192c-4ad5-bef4-88b950495282	{}	3
+20c97738-ef11-48f6-836a-7254a80b86db	files	contracts/02b861e0-b3c9-4b7f-99c5-df49f729c931/landlord_signed.pdf	d0dbc613-192c-4ad5-bef4-88b950495282	2025-12-21 12:20:53.837808+00	2025-12-21 12:20:53.837808+00	2025-12-21 12:20:53.837808+00	{"eTag": "\\"a56259e1f4cf3d1c9cf80d5fc7028ab6\\"", "size": 1235331, "mimetype": "application/pdf", "cacheControl": "max-age=3600", "lastModified": "2025-12-21T12:20:54.000Z", "contentLength": 1235331, "httpStatusCode": 200}	48eaa591-43df-4c96-aa06-e78ddd5b18ee	d0dbc613-192c-4ad5-bef4-88b950495282	{}	3
+35a78d0f-ee03-4d2b-a352-cd475e529309	files	contracts/02b861e0-b3c9-4b7f-99c5-df49f729c931/tenant_signed.pdf	6ceb2c46-4def-4cc2-9306-fade1ce435eb	2025-12-21 18:10:17.208323+00	2025-12-21 18:10:17.208323+00	2025-12-21 18:10:17.208323+00	{"eTag": "\\"a56259e1f4cf3d1c9cf80d5fc7028ab6\\"", "size": 1235331, "mimetype": "application/pdf", "cacheControl": "max-age=3600", "lastModified": "2025-12-21T18:10:18.000Z", "contentLength": 1235331, "httpStatusCode": 200}	48fe3ee3-41a9-4fec-bed2-cf76596e37e0	6ceb2c46-4def-4cc2-9306-fade1ce435eb	{}	3
 \.
 
 
@@ -4244,6 +4395,9 @@ photos	ba8ae63f-4ade-4159-955f-91e2db67e97b	2025-12-16 22:08:53.25768+00	2025-12
 photos	400d8a13-f80a-4229-81e1-60ece7405dad	2025-12-16 22:15:11.865001+00	2025-12-16 22:15:11.865001+00
 photos	66ca39eb-1f69-423c-b2c1-9f209298328c	2025-12-16 22:21:39.097837+00	2025-12-16 22:21:39.097837+00
 photos	3a6367ec-8d8b-4ed8-b2d9-eceb019315d0	2025-12-16 22:40:23.269575+00	2025-12-16 22:40:23.269575+00
+files	contracts	2025-12-21 10:39:19.941468+00	2025-12-21 10:39:19.941468+00
+files	contracts/17f83a33-4cec-4c07-83b0-ba4271618c4f	2025-12-21 10:39:19.941468+00	2025-12-21 10:39:19.941468+00
+files	contracts/02b861e0-b3c9-4b7f-99c5-df49f729c931	2025-12-21 12:20:30.547304+00	2025-12-21 12:20:30.547304+00
 \.
 
 
@@ -4283,7 +4437,7 @@ COPY vault.secrets (id, name, description, secret, key_id, nonce, created_at, up
 -- Name: refresh_tokens_id_seq; Type: SEQUENCE SET; Schema: auth; Owner: supabase_auth_admin
 --
 
-SELECT pg_catalog.setval('auth.refresh_tokens_id_seq', 163, true);
+SELECT pg_catalog.setval('auth.refresh_tokens_id_seq', 321, true);
 
 
 --
@@ -4555,6 +4709,22 @@ ALTER TABLE ONLY public.complaints
 
 ALTER TABLE ONLY public.favorites
     ADD CONSTRAINT favorites_pkey PRIMARY KEY (user_id, property_id);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments
+    ADD CONSTRAINT payments_pkey PRIMARY KEY (id);
 
 
 --
@@ -5135,6 +5305,27 @@ CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXEC
 
 
 --
+-- Name: applications on_application_created; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER on_application_created AFTER INSERT ON public.applications FOR EACH ROW EXECUTE FUNCTION public.handle_new_application();
+
+
+--
+-- Name: applications on_application_updated; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER on_application_updated AFTER UPDATE ON public.applications FOR EACH ROW EXECUTE FUNCTION public.handle_application_status_change();
+
+
+--
+-- Name: complaints on_complaint_created; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER on_complaint_created AFTER INSERT ON public.complaints FOR EACH ROW EXECUTE FUNCTION public.handle_new_complaint();
+
+
+--
 -- Name: applications trg_set_application_owner; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -5374,6 +5565,30 @@ ALTER TABLE ONLY public.favorites
 
 
 --
+-- Name: notifications notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: payments payments_application_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments
+    ADD CONSTRAINT payments_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.applications(id) ON DELETE CASCADE;
+
+
+--
+-- Name: payments payments_payer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments
+    ADD CONSTRAINT payments_payer_id_fkey FOREIGN KEY (payer_id) REFERENCES public.users(id);
+
+
+--
 -- Name: properties properties_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -5581,6 +5796,25 @@ CREATE POLICY "Images are publicly viewable" ON public.property_images FOR SELEC
 
 
 --
+-- Name: complaints Landlords & Agent view complaints about their properties; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Landlords & Agent view complaints about their properties" ON public.complaints FOR SELECT USING (((target_type = 'property'::text) AND (EXISTS ( SELECT 1
+   FROM public.properties p
+  WHERE ((p.id = complaints.target_id) AND (p.owner_id = auth.uid()))))));
+
+
+--
+-- Name: payments Owners (Landlords/Agents) view payments for their applications; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Owners (Landlords/Agents) view payments for their applications" ON public.payments FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM (public.applications a
+     JOIN public.properties p ON ((a.property_id = p.id)))
+  WHERE ((a.id = payments.application_id) AND (p.owner_id = auth.uid())))));
+
+
+--
 -- Name: properties Owners and Admins can delete properties; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -5588,10 +5822,28 @@ CREATE POLICY "Owners and Admins can delete properties" ON public.properties FOR
 
 
 --
+-- Name: property_images Owners can delete images of their properties; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Owners can delete images of their properties" ON public.property_images FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM public.properties p
+  WHERE ((p.id = property_images.property_id) AND (p.owner_id = auth.uid())))));
+
+
+--
 -- Name: properties Owners can delete own properties; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Owners can delete own properties" ON public.properties FOR DELETE USING ((( SELECT auth.uid() AS uid) = owner_id));
+
+
+--
+-- Name: property_images Owners can insert images for their properties; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Owners can insert images for their properties" ON public.property_images FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.properties p
+  WHERE ((p.id = property_images.property_id) AND (p.owner_id = auth.uid())))));
 
 
 --
@@ -5604,10 +5856,12 @@ CREATE POLICY "Owners can manage images" ON public.property_images USING ((EXIST
 
 
 --
--- Name: applications Owners can update application status; Type: POLICY; Schema: public; Owner: postgres
+-- Name: applications Owners can update applications for their properties; Type: POLICY; Schema: public; Owner: postgres
 --
 
-CREATE POLICY "Owners can update application status" ON public.applications FOR UPDATE USING ((( SELECT auth.uid() AS uid) = property_owner_id));
+CREATE POLICY "Owners can update applications for their properties" ON public.applications FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.properties
+  WHERE ((properties.id = applications.property_id) AND (properties.owner_id = auth.uid())))));
 
 
 --
@@ -5639,6 +5893,20 @@ CREATE POLICY "Users and Admins can update profile" ON public.users FOR UPDATE U
 
 
 --
+-- Name: complaints Users can create complaints; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Users can create complaints" ON public.complaints FOR INSERT TO authenticated WITH CHECK ((auth.uid() = reporter_id));
+
+
+--
+-- Name: payments Users can create payments; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Users can create payments" ON public.payments FOR INSERT WITH CHECK ((auth.uid() = payer_id));
+
+
+--
 -- Name: favorites Users can manage favorites; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -5653,10 +5921,31 @@ CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE USING ((
 
 
 --
+-- Name: applications Users can update related applications; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Users can update related applications" ON public.applications FOR UPDATE TO authenticated USING (((auth.uid() = applicant_id) OR (auth.uid() = property_owner_id))) WITH CHECK (((auth.uid() = applicant_id) OR (auth.uid() = property_owner_id)));
+
+
+--
+-- Name: notifications Users can update their own notifications; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE TO authenticated USING ((auth.uid() = user_id));
+
+
+--
 -- Name: uploaded_files Users can upload files; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users can upload files" ON public.uploaded_files FOR INSERT WITH CHECK ((( SELECT auth.uid() AS uid) = uploaded_by));
+
+
+--
+-- Name: complaints Users can view own complaints; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Users can view own complaints" ON public.complaints FOR SELECT TO authenticated USING ((auth.uid() = reporter_id));
 
 
 --
@@ -5681,10 +5970,24 @@ CREATE POLICY "Users can view relevant applications" ON public.applications FOR 
 
 
 --
+-- Name: notifications Users can view their own notifications; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT TO authenticated USING ((auth.uid() = user_id));
+
+
+--
 -- Name: complaints Users report complaints; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users report complaints" ON public.complaints FOR INSERT WITH CHECK ((( SELECT auth.uid() AS uid) = reporter_id));
+
+
+--
+-- Name: payments Users view their own payments; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Users view their own payments" ON public.payments FOR SELECT USING ((auth.uid() = payer_id));
 
 
 --
@@ -5713,6 +6016,18 @@ ALTER TABLE public.complaints ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: notifications; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: payments; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: properties; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -5773,6 +6088,20 @@ CREATE POLICY "Authenticated Upload 1oj01fe_2" ON storage.objects FOR SELECT TO 
 
 
 --
+-- Name: objects Authenticated users can upload contracts 1m0cqf_0; Type: POLICY; Schema: storage; Owner: supabase_storage_admin
+--
+
+CREATE POLICY "Authenticated users can upload contracts 1m0cqf_0" ON storage.objects FOR INSERT TO authenticated WITH CHECK (((bucket_id = 'files'::text) AND ((storage.foldername(name))[1] = 'contracts'::text)));
+
+
+--
+-- Name: objects Authenticated users can view files 1m0cqf_0; Type: POLICY; Schema: storage; Owner: supabase_storage_admin
+--
+
+CREATE POLICY "Authenticated users can view files 1m0cqf_0" ON storage.objects FOR SELECT TO authenticated USING ((bucket_id = 'files'::text));
+
+
+--
 -- Name: objects Public View 1io9m69_0; Type: POLICY; Schema: storage; Owner: supabase_storage_admin
 --
 
@@ -5784,6 +6113,34 @@ CREATE POLICY "Public View 1io9m69_0" ON storage.objects FOR SELECT USING ((buck
 --
 
 CREATE POLICY "Public View 1oj01fe_0" ON storage.objects FOR SELECT USING ((bucket_id = 'avatars'::text));
+
+
+--
+-- Name: objects Users can delete own files 1m0cqf_0; Type: POLICY; Schema: storage; Owner: supabase_storage_admin
+--
+
+CREATE POLICY "Users can delete own files 1m0cqf_0" ON storage.objects FOR DELETE TO authenticated USING (((bucket_id = 'files'::text) AND (auth.uid() = owner)));
+
+
+--
+-- Name: objects Users can delete own files 1m0cqf_1; Type: POLICY; Schema: storage; Owner: supabase_storage_admin
+--
+
+CREATE POLICY "Users can delete own files 1m0cqf_1" ON storage.objects FOR SELECT TO authenticated USING (((bucket_id = 'files'::text) AND (auth.uid() = owner)));
+
+
+--
+-- Name: objects Users can update own files 1m0cqf_0; Type: POLICY; Schema: storage; Owner: supabase_storage_admin
+--
+
+CREATE POLICY "Users can update own files 1m0cqf_0" ON storage.objects FOR UPDATE TO authenticated USING (((bucket_id = 'files'::text) AND (auth.uid() = owner)));
+
+
+--
+-- Name: objects Users can update own files 1m0cqf_1; Type: POLICY; Schema: storage; Owner: supabase_storage_admin
+--
+
+CREATE POLICY "Users can update own files 1m0cqf_1" ON storage.objects FOR SELECT TO authenticated USING (((bucket_id = 'files'::text) AND (auth.uid() = owner)));
 
 
 --
@@ -6454,6 +6811,42 @@ GRANT ALL ON FUNCTION pgbouncer.get_auth(p_usename text) TO pgbouncer;
 
 
 --
+-- Name: FUNCTION complete_payment(p_application_id uuid, p_payer_id uuid, p_amount numeric); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.complete_payment(p_application_id uuid, p_payer_id uuid, p_amount numeric) TO anon;
+GRANT ALL ON FUNCTION public.complete_payment(p_application_id uuid, p_payer_id uuid, p_amount numeric) TO authenticated;
+GRANT ALL ON FUNCTION public.complete_payment(p_application_id uuid, p_payer_id uuid, p_amount numeric) TO service_role;
+
+
+--
+-- Name: FUNCTION handle_application_status_change(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.handle_application_status_change() TO anon;
+GRANT ALL ON FUNCTION public.handle_application_status_change() TO authenticated;
+GRANT ALL ON FUNCTION public.handle_application_status_change() TO service_role;
+
+
+--
+-- Name: FUNCTION handle_new_application(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.handle_new_application() TO anon;
+GRANT ALL ON FUNCTION public.handle_new_application() TO authenticated;
+GRANT ALL ON FUNCTION public.handle_new_application() TO service_role;
+
+
+--
+-- Name: FUNCTION handle_new_complaint(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.handle_new_complaint() TO anon;
+GRANT ALL ON FUNCTION public.handle_new_complaint() TO authenticated;
+GRANT ALL ON FUNCTION public.handle_new_complaint() TO service_role;
+
+
+--
 -- Name: FUNCTION handle_new_user(); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -6861,6 +7254,24 @@ GRANT ALL ON TABLE public.complaints TO service_role;
 GRANT ALL ON TABLE public.favorites TO anon;
 GRANT ALL ON TABLE public.favorites TO authenticated;
 GRANT ALL ON TABLE public.favorites TO service_role;
+
+
+--
+-- Name: TABLE notifications; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.notifications TO anon;
+GRANT ALL ON TABLE public.notifications TO authenticated;
+GRANT ALL ON TABLE public.notifications TO service_role;
+
+
+--
+-- Name: TABLE payments; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.payments TO anon;
+GRANT ALL ON TABLE public.payments TO authenticated;
+GRANT ALL ON TABLE public.payments TO service_role;
 
 
 --
@@ -7327,5 +7738,5 @@ ALTER EVENT TRIGGER pgrst_drop_watch OWNER TO supabase_admin;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict L9KjeXqCfzNEwx2LKL4UtdWpZjxkyFEk81TsToSMi437ZPIq55Aif0nySpGsL7T
+\unrestrict djfitFIae6oTzqbB68iNZjbKAHbdeXpLclAs5VdeA9vpVceDedJ0wyCLUhDhqLc
 

@@ -128,4 +128,32 @@ export const ListingService = {
       throw err instanceof Error ? err : new Error('Publish failed');
     }
   },
+
+  async updateFromFiles(propertyId: string, form: ListingDraft, files: File[], userId: string): Promise<void> {
+    const payload = toDbPayload(form, userId);
+    // 1. Update main record
+    const { error } = await supabase.from('properties').update(payload).eq('id', propertyId);
+    if (error) throw new Error(error.message);
+
+    // 2. Upload NEW files if any
+    if (files.length > 0) {
+      const photos = await Promise.all(files.map(f => fileToBase64(f)));
+      // Get current image count to set order_index roughly (optional but good)
+      const { count } = await supabase.from('property_images').select('*', { count: 'exact', head: true }).eq('property_id', propertyId);
+      let nextIndex = count || 0;
+
+      const uploaded = [];
+      for (let p of photos) {
+        const res = await uploadBase64Image(propertyId, p, nextIndex++);
+        uploaded.push(res);
+      }
+      const records: ImageRecord[] = uploaded.map(u => ({
+        property_id: propertyId,
+        image_url: u.url,
+        is_cover: false, // Assume existing cover remains or logic handled elsewhere
+        order_index: u.orderIndex,
+      }));
+      await insertPropertyImages(records);
+    }
+  },
 };

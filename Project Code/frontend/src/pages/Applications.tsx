@@ -1,23 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Layout/Navbar';
-// import { useAuth } from '../context/AuthContext';
-// import { Link } from 'react-router-dom';
-import clsx from 'clsx';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { ApplicationDetailModal } from '../components/Application/ApplicationDetailModal';
 import type { Application } from '../types';
 
-const MOCK_APPS: Application[] = [
-    { id: 8001, propertyId: "101", propertyTitle: "Studio near UKM - 5 min", applicant: "Zhang Peigen", studentId: "A199958", submitted: "2025-12-01T10:15", status: "pending", message: "I need the room from Jan to June. I can provide guarantor.", files: [{ name: "student_id.jpg", type: "image/jpeg", url: "#" }, { name: "transcript.pdf", type: "application/pdf", url: "#" }] },
-    { id: 8002, propertyId: "103", propertyTitle: "2BR apartment — quiet neighbourhood", applicant: "Liu Zetong", studentId: "A199538", submitted: "2025-12-03T14:20", status: "pending", message: "Looking for a 2-month stay in Jan-Feb.", files: [{ name: "id_card.png", type: "image/png", url: "#" }] },
-    { id: 8003, propertyId: "102", propertyTitle: "Cozy 1BR, close to bus stop", applicant: "Siti Nur", studentId: "A201234", submitted: "2025-11-24T09:05", status: "accepted", files: [] }
-];
-
 export const Applications: React.FC = () => {
-    const [apps, setApps] = useState<Application[]>(MOCK_APPS);
-    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const { user } = useAuth();
+    const [apps, setApps] = useState<Application[]>([]);
+    const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+    const [showModal, setShowModal] = useState(false);
     const [filter, setFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
-    const selectedApp = apps.find(a => a.id === selectedId);
+    useEffect(() => {
+        fetchApps();
+    }, []);
+
+    const fetchApps = async () => {
+        const { data } = await supabase
+            .from('applications')
+            .select(`
+                *,
+                properties (title, price),
+                applicant:users!applicant_id (
+                    full_name,
+                    student_id,
+                    email,
+                    phone
+                )
+            `);
+
+        if (data) {
+            const mapped = data.map((a: any) => ({
+                id: String(a.id),
+                propertyId: a.property_id,
+                propertyTitle: a.properties?.title || 'Unknown Property',
+                applicant: a.applicant?.full_name || 'Unknown Applicant',
+                studentId: a.applicant?.student_id || 'N/A',
+                submitted: a.created_at,
+                status: a.status,
+                message: a.message,
+                appointmentTime: a.appointment_at || null,
+                feedback: a.feedback || null,
+                applicantId: a.applicant_id,
+                propertyOwnerId: a.property_owner_id,
+                stage: a.stage || 'application',
+                contract_url: a.contract_url || null,
+                contract_status: a.contract_status || 'pending',
+                contract_signed_landlord: a.contract_signed_landlord || false,
+                contract_signed_tenant: a.contract_signed_tenant || false,
+                payment_status: a.payment_status || 'unpaid',
+                files: a.documents
+                    ? (typeof a.documents === 'string' ? JSON.parse(a.documents) : a.documents)
+                    : []
+            }));
+            setApps(mapped);
+        }
+    };
 
     const filteredApps = apps.filter(a => {
         const matchesText = (a.applicant + a.propertyTitle + a.studentId).toLowerCase().includes(filter.toLowerCase());
@@ -25,125 +65,191 @@ export const Applications: React.FC = () => {
         return matchesText && matchesStatus;
     });
 
-    const updateStatus = (id: number, status: 'accepted' | 'rejected') => {
-        setApps(apps.map(a => a.id === id ? { ...a, status } : a));
+    const isPropertyOwner = (app: Application) => {
+        return user?.id === app.propertyOwnerId;
+    };
+
+    const isTenant = (app: Application) => {
+        return user?.id === app.applicantId;
+    };
+
+    const handleViewDetails = (app: Application) => {
+        setSelectedApp(app);
+        setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        fetchApps(); // Refresh list when modal closes
     };
 
     return (
         <div className="page" style={{ paddingTop: 80, paddingBottom: 40, background: '#f6f8fb', minHeight: '100vh' }}>
             <Navbar />
 
-            <main className="container" style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 380px', gap: '24px', maxWidth: '1200px', margin: '0 auto', padding: '0 16px' }}>
-                {/* List Panel */}
-                <section className="card" style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 12, padding: 16, height: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Applications</h2>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <input
-                                type="search" placeholder="Search..."
-                                value={filter} onChange={e => setFilter(e.target.value)}
-                                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #eee', fontSize: '13px' }}
-                            />
-                            <select
-                                value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                                style={{ padding: '6px', borderRadius: 8, border: '1px solid #eee', fontSize: '13px' }}
-                            >
-                                <option value="all">All</option>
-                                <option value="pending">Pending</option>
-                                <option value="accepted">Accepted</option>
-                                <option value="rejected">Rejected</option>
-                            </select>
-                        </div>
+            <main className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                    <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0 }}>📋 Applications</h1>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                        <input
+                            type="search"
+                            placeholder="Search..."
+                            value={filter}
+                            onChange={e => setFilter(e.target.value)}
+                            style={{
+                                padding: '10px 16px',
+                                borderRadius: 8,
+                                border: '2px solid #dee2e6',
+                                fontSize: 14
+                            }}
+                        />
+                        <select
+                            value={statusFilter}
+                            onChange={e => setStatusFilter(e.target.value)}
+                            style={{
+                                padding: '10px 16px',
+                                borderRadius: 8,
+                                border: '2px solid #dee2e6',
+                                fontSize: 14,
+                                fontWeight: 600
+                            }}
+                        >
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
                     </div>
+                </div>
 
-                    <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {filteredApps.map(app => (
-                            <div
-                                key={app.id} onClick={() => setSelectedId(app.id)}
-                                style={{
-                                    padding: 12, borderRadius: 10, background: selectedId === app.id ? '#f0f7ff' : '#fff',
-                                    border: selectedId === app.id ? '1px solid var(--accent)' : '1px solid #f0f0f0',
-                                    cursor: 'pointer', transition: 'all 0.2s'
-                                }}
-                            >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                    <strong style={{ fontSize: '14px' }}>{app.applicant}</strong>
-                                    <span className={clsx('status-pill', app.status)} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 99, textTransform: 'capitalize', background: app.status === 'pending' ? '#fff7e6' : app.status === 'accepted' ? '#e6ffef' : '#ffecec', color: app.status === 'pending' ? '#a36b00' : app.status === 'accepted' ? '#17c964' : '#ff6b6b' }}>
-                                        {app.status}
-                                    </span>
-                                </div>
-                                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{app.studentId} • {new Date(app.submitted).toLocaleDateString()}</div>
-                                <div style={{ fontSize: '12px', color: '#444', marginTop: 4 }}>{app.propertyTitle}</div>
-                            </div>
-                        ))}
-                        {filteredApps.length === 0 && <div style={{ padding: 20, textAlign: 'center', fontSize: '13px', color: 'var(--muted)' }}>No applications found.</div>}
-                    </div>
-                </section>
-
-                {/* Detail Panel */}
-                <aside className="card" style={{ background: '#fff', borderRadius: 12, padding: 20, height: 'fit-content', minHeight: '400px' }}>
-                    {selectedApp ? (
-                        <div className="fade-in">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
-                                <div>
-                                    <div style={{ fontSize: '20px', fontWeight: 700 }}>{selectedApp.applicant}</div>
-                                    <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{selectedApp.studentId}</div>
-                                </div>
-                                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{new Date(selectedApp.submitted).toLocaleString()}</div>
-                            </div>
-
-                            <div style={{ marginBottom: 20 }}>
-                                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 6 }}>Applied for</div>
-                                <div style={{ fontSize: '14px', color: 'var(--accent)' }}>{selectedApp.propertyTitle}</div>
-                            </div>
-
-                            <div style={{ marginBottom: 20 }}>
-                                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 6 }}>Message</div>
-                                <div style={{ fontSize: '14px', background: '#f9fafb', padding: 10, borderRadius: 8 }}>{selectedApp.message || 'No message provided.'}</div>
-                            </div>
-
-                            <div style={{ marginBottom: 20 }}>
-                                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 6 }}>Documents</div>
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {selectedApp.files.length > 0 ? selectedApp.files.map((f, i) => (
-                                        <div key={i} style={{ padding: '6px 12px', border: '1px solid #eee', borderRadius: 8, fontSize: '12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            📄 {f.name}
-                                        </div>
-                                    )) : <span style={{ fontSize: '13px', color: 'var(--muted)' }}>No files attached</span>}
-                                </div>
-                            </div>
-
-                            <div style={{ height: 1, background: '#eee', margin: '20px 0' }}></div>
-
-                            <div style={{ display: 'flex', gap: 10 }}>
-                                <button
-                                    onClick={() => updateStatus(selectedApp.id, 'accepted')}
-                                    className="btn btn-primary"
-                                    disabled={selectedApp.status === 'accepted'}
-                                    style={{ flex: 1, padding: '10px' }}
-                                >
-                                    Accept
-                                </button>
-                                <button
-                                    onClick={() => updateStatus(selectedApp.id, 'rejected')}
-                                    className="btn btn-ghost"
-                                    style={{ flex: 1, color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                                    disabled={selectedApp.status === 'rejected'}
-                                >
-                                    Reject
-                                </button>
-                            </div>
-                            <div style={{ marginTop: 12 }}>
-                                <button className="btn btn-ghost" style={{ width: '100%', fontSize: '13px' }}>Request more info</button>
-                            </div>
+                {/* Application Cards */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {filteredApps.length === 0 ? (
+                        <div style={{
+                            padding: 60,
+                            background: 'white',
+                            borderRadius: 12,
+                            border: '3px solid #dee2e6',
+                            textAlign: 'center',
+                            color: '#6c757d'
+                        }}>
+                            <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+                            <div style={{ fontSize: 18, fontWeight: 600 }}>No applications found</div>
                         </div>
                     ) : (
-                        <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--muted)', fontSize: '14px' }}>
-                            Select an application to view details
-                        </div>
+                        filteredApps.map(app => (
+                            <div
+                                key={app.id}
+                                style={{
+                                    background: 'white',
+                                    borderRadius: 12,
+                                    border: '3px solid #212529',
+                                    padding: 20,
+                                    transition: 'all 0.3s'
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                                            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
+                                                {app.propertyTitle}
+                                            </h3>
+                                            <span style={{
+                                                padding: '4px 12px',
+                                                borderRadius: 6,
+                                                fontSize: 12,
+                                                fontWeight: 700,
+                                                textTransform: 'uppercase',
+                                                background: app.status === 'pending' ? '#fff7e6' : app.status === 'accepted' ? '#d4edda' : '#f8d7da',
+                                                color: app.status === 'pending' ? '#856404' : app.status === 'accepted' ? '#155724' : '#721c24'
+                                            }}>
+                                                {app.status}
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: 14, color: '#6c757d', marginBottom: 4 }}>
+                                            <strong>Applicant:</strong> {app.applicant} ({app.studentId})
+                                        </div>
+                                        <div style={{ fontSize: 13, color: '#6c757d' }}>
+                                            Submitted on {new Date(app.submitted).toLocaleString('en-MY', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </div>
+
+                                        {/* Stage Badge */}
+                                        <div style={{ marginTop: 12 }}>
+                                            <div style={{
+                                                display: 'inline-block',
+                                                padding: '6px 12px',
+                                                borderRadius: 6,
+                                                background: app.stage === 'completed' ? '#28a745' : app.stage === 'processing' ? '#ffc107' : '#6c757d',
+                                                color: 'white',
+                                                fontSize: 12,
+                                                fontWeight: 700
+                                            }}>
+                                                {app.stage === 'application' && '📝 Application'}
+                                                {app.stage === 'processing' && '⚙️ Processing'}
+                                                {app.stage === 'completed' && '✅ Completed'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => handleViewDetails(app)}
+                                        style={{
+                                            padding: '12px 24px',
+                                            background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: 8,
+                                            fontSize: 15,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        👁️ View Details & Progress
+                                    </button>
+                                </div>
+
+                                {/* Preview Info */}
+                                {app.message && (
+                                    <div style={{
+                                        padding: 12,
+                                        background: '#f8f9fa',
+                                        borderRadius: 8,
+                                        fontSize: 13,
+                                        color: '#495057',
+                                        fontStyle: 'italic',
+                                        marginTop: 12,
+                                        maxHeight: 60,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}>
+                                        {app.message.length > 150 ? app.message.substring(0, 150) + '...' : app.message}
+                                    </div>
+                                )}
+                            </div>
+                        ))
                     )}
-                </aside>
+                </div>
             </main>
+
+            {/* Application Detail Modal */}
+            {selectedApp && (
+                <ApplicationDetailModal
+                    application={selectedApp}
+                    isOpen={showModal}
+                    onClose={handleCloseModal}
+                    isLandlord={isPropertyOwner(selectedApp)}
+                    isTenant={isTenant(selectedApp)}
+                    onUpdate={fetchApps}
+                />
+            )}
         </div>
     );
 };
