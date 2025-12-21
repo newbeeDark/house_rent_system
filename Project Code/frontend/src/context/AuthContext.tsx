@@ -8,6 +8,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     loading: boolean;
     error: string | null;
+    refreshProfile: () => Promise<void>;
     login: (params: { email: string; password: string }) => Promise<void>;
     register: (params: {
         email: string;
@@ -32,19 +33,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const fetchProfile = async (uid: string): Promise<User | null> => {
         for (let i = 0; i < 3; i++) {
-            const u = await supabase.from('users').select('role,full_name,avatar_url').eq('id', uid).maybeSingle();
+            const u = await supabase.from('users').select('role,full_name,avatar_url,terms_accepted_at').eq('id', uid).maybeSingle();
             if (!u.error && u.data) {
                 const email = (await supabase.auth.getUser()).data.user?.email || '';
-                return { id: uid, name: u.data.full_name || '', email, role: (u.data.role || 'guest') as Role };
+                return { id: uid, name: u.data.full_name || '', email, role: (u.data.role || 'guest') as Role, terms_accepted_at: u.data.terms_accepted_at ?? null };
             }
             const p = await supabase.from('profiles').select('role,full_name,avatar_url').eq('id', uid).maybeSingle();
             if (!p.error && p.data) {
                 const email = (await supabase.auth.getUser()).data.user?.email || '';
-                return { id: uid, name: p.data.full_name || '', email, role: (p.data.role || 'guest') as Role };
+                return { id: uid, name: p.data.full_name || '', email, role: (p.data.role || 'guest') as Role, terms_accepted_at: null };
             }
             await new Promise(r => setTimeout(r, 500));
         }
         return null;
+    };
+
+    const refreshProfile = async () => {
+        const { data } = await supabase.auth.getUser();
+        const uid = data.user?.id;
+        if (!uid) return;
+        const profile = await fetchProfile(uid);
+        setUser(profile);
     };
 
     useEffect(() => {
@@ -77,8 +86,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (err) {
             const text =
                 /invalid/i.test(err.message) ? 'Invalid login credentials.' :
-                /email/i.test(err.message) && /confirm/i.test(err.message) ? 'Please confirm your email before signing in.' :
-                err.message || 'Login failed.';
+                    /email/i.test(err.message) && /confirm/i.test(err.message) ? 'Please confirm your email before signing in.' :
+                        err.message || 'Login failed.';
             setError(text);
             setLoading(false);
             throw new Error(text);
@@ -129,8 +138,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (err) {
             const text =
                 /registered|exists/i.test(err.message) ? 'Email already registered.' :
-                /password|weak/i.test(err.message) ? 'Password is too weak.' :
-                err.message || 'Registration failed.';
+                    /password|weak/i.test(err.message) ? 'Password is too weak.' :
+                        err.message || 'Registration failed.';
             setError(text);
             setLoading(false);
             throw new Error(text);
@@ -141,32 +150,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-   // 在 src/context/AuthContext.tsx 中找到 logout 函数
-
-        const logout = async () => {
+    const logout = async () => {
         try {
-            // 1. 尝试通知服务器退出 (但这步可能会慢，或者出错)
+            // Sign out from Supabase (this clears Supabase's auth storage automatically)
             await supabase.auth.signOut();
         } catch (error) {
-            // 就算出错也不要在意，反正我们要走了
-            console.error("Logout warning:", error);
+            console.error("Logout error:", error);
         } finally {
-            // 2. 【关键修正】这里的内容，无论上面成功、失败、还是超时，都 100% 会执行！
-            
-            // 清理 React 状态
+            // Clear React state
             setUser(null);
-            
-            // 暴力清理所有缓存 (确保刷新后一定是未登录)
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            // 强制刷新并跳转 (相当于自动帮你按了 F5)
+
+            // Only clear app-specific data, NOT Supabase's auth storage
+            // Remove any app-specific localStorage keys if you have them
+            // Example: localStorage.removeItem('app-specific-key');
+            // DO NOT use localStorage.clear() or sessionStorage.clear()
+            // as it will break Supabase's session persistence
+
+            // Redirect to login page
             window.location.href = '/login';
         }
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, error, login, register, logout }}>
+        <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, error, refreshProfile, login, register, logout }}>
             {children}
         </AuthContext.Provider>
     );

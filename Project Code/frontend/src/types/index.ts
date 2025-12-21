@@ -5,6 +5,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  terms_accepted_at?: string | null;
 }
 
 export interface HostInfo {
@@ -21,6 +22,7 @@ export interface PropertyStats {
 
 export interface Property {
   id: string;
+  ownerId?: string;
   title: string;
   area: string;
   address?: string;
@@ -53,15 +55,34 @@ export interface LocationState {
 }
 
 export interface Application {
-  id: number;
+  id: string;
   propertyId: string;
   propertyTitle: string;
   applicant: string;
   studentId: string;
   submitted: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'pending' | 'accepted' | 'rejected' | 'awaiting_payment' | 'completed' | 'cancelled';
   message?: string;
   files: { name: string; type: string; url: string }[];
+  appointmentTime?: string | null;
+  feedback?: string | null;
+  applicantId: string;
+  propertyOwnerId: string;
+  stage: 'application' | 'processing' | 'completed';
+  contract_url?: string | null;
+  contract_status: 'pending' | 'uploaded' | 'signed_by_tenant' | 'signed_by_landlord' | 'completed';
+  contract_signed_landlord?: boolean;
+  contract_signed_tenant?: boolean;
+  payment_status: 'unpaid' | 'paid';
+}
+
+export interface Payment {
+  id: string;
+  application_id: string;
+  payer_id: string;
+  amount: number;
+  currency: string;
+  created_at: string;
 }
 
 export interface ListingDraft {

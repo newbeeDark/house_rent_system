@@ -12,9 +12,6 @@ interface PropertyCardProps {
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 }) => {
     const { user } = useAuth();
-    const isStudent = user?.role === 'student';
-    const isLandlord = user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'host';
-    // const isGuest = !user; // Unused
 
     // Format distance
     const dist = property.distance !== undefined
@@ -104,7 +101,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 
                             aria-label={liked ? "Remove from favourites" : "Add to favourites"}
                             onClick={handleToggleFavorite}
                             disabled={toggling}
-                            style={{ 
+                            style={{
                                 color: liked ? 'red' : 'inherit',
                                 opacity: toggling ? 0.5 : 1,
                                 cursor: toggling ? 'not-allowed' : 'pointer'
@@ -114,14 +111,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 
                         </button>
 
                         <Link to={`/property/${property.id}`} className="btn btn-ghost view-link" style={{ marginLeft: '8px' }}>View</Link>
-
-                        {isStudent && (
-                            <Link to={`/apply/${property.id}`} className="btn btn-ghost apply-link">Apply</Link>
-                        )}
-
-                        {isLandlord && (
-                            <Link to={`/edit/${property.id}`} className="btn btn-ghost edit-link">Edit</Link>
-                        )}
                     </div>
                 </div>
             </div>

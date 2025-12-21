@@ -1,7 +1,7 @@
-import React, { useState ,useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Layout/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { ListingDraft } from '../types';
 import { ListingService } from '../services/listing.service';
 
@@ -10,36 +10,40 @@ import { ListingService } from '../services/listing.service';
 export const CreateListing: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-        // 如果用户未登录，3秒后自动跳转到首页
-        useEffect(() => {
-            if (!user) {
-                const timer = setTimeout(() => {
-                    navigate('/');
-                }, 3000);
-                
-                // 清理定时器，防止组件卸载时内存泄漏
-                return () => clearTimeout(timer);
-            }
-        }, [user, navigate]);
+    const location = useLocation();
+    const existingProperty = location.state?.property;
+    const editMode = location.state?.mode === 'edit';
+
+    // 如果用户未登录或是学生，3秒后自动跳转到首页
+    useEffect(() => {
+        if (!user || user.role === 'student') {
+            const timer = setTimeout(() => {
+                navigate('/');
+            }, 3000);
+
+            // 清理定时器，防止组件卸载时内存泄漏
+            return () => clearTimeout(timer);
+        }
+    }, [user, navigate]);
     const [form, setForm] = useState<ListingDraft>({
-        title: '',
-        price: 0,
-        beds: 1,
-        area: '',
-        address: '',
-        description: '',
-        photos: [],
-        bathroom: 1,
-        kitchen: false,
-        propertySize: 0,
-        propertyType: 'Apartment',
-        furnished: 'none',
-        availableFrom: '',
-        amenities: []
+        title: existingProperty?.title || '',
+        price: existingProperty?.price || 0,
+        beds: existingProperty?.beds || 1,
+        area: existingProperty?.area || '',
+        address: existingProperty?.address || '',
+        description: existingProperty?.desc || '',
+        photos: existingProperty?.images || [],
+        bathroom: existingProperty?.bathroom || 1,
+        kitchen: existingProperty?.kitchen || false,
+        propertySize: existingProperty?.propertySize || 0,
+        propertyType: existingProperty?.propertyType || 'Apartment',
+        furnished: existingProperty?.furnished || 'none',
+        availableFrom: existingProperty?.availableFrom || '',
+        amenities: existingProperty?.amenities || existingProperty?.features || []
     });
 
     const [files, setFiles] = useState<File[]>([]);
-    const [previews, setPreviews] = useState<string[]>([]);
+    const [previews, setPreviews] = useState<string[]>(existingProperty?.images || (existingProperty?.img ? [existingProperty.img] : []));
     const [submitting, setSubmitting] = useState(false);
     const [roleFiles, setRoleFiles] = useState<{ proof?: File | null, license?: File | null }>({});
 
@@ -78,10 +82,15 @@ export const CreateListing: React.FC = () => {
         setSubmitting(true);
 
         try {
-            await ListingService.publishFromFiles(form, files, user.id);
-            navigate('/?new=true');
+            if (editMode && existingProperty?.id) {
+                await ListingService.updateFromFiles(existingProperty.id, form, files, user.id);
+                navigate(`/property/${existingProperty.id}`);
+            } else {
+                await ListingService.publishFromFiles(form, files, user.id);
+                navigate('/?new=true');
+            }
         } catch (err) {
-            alert((err as any)?.message || 'Error publishing listing');
+            alert((err as any)?.message || 'Error processing listing');
             setSubmitting(false);
         }
     };
@@ -97,6 +106,29 @@ export const CreateListing: React.FC = () => {
         );
     }
 
+    // Block students from accessing CreateListing
+    if (user.role === 'student') {
+        return (
+            <div className="page" style={{ paddingTop: 80, paddingBottom: 40, background: 'linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%)', minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+                <div style={{ textAlign: 'center', maxWidth: '500px', padding: '40px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '3px solid #212529' }}>
+                    <div style={{ fontSize: '64px', marginBottom: '20px' }}>🚫</div>
+                    <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '16px', color: '#212529' }}>Access Denied</h2>
+                    <p style={{ fontSize: '16px', color: '#6c757d', marginBottom: '8px' }}>Tenants cannot post listings.</p>
+                    <p style={{ fontSize: '14px', color: '#adb5bd' }}>Redirecting to homepage in 3 seconds...</p>
+                    <div style={{ marginTop: '24px', height: '4px', background: '#e9ecef', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', background: 'linear-gradient(90deg, #d4af37, #f4d03f)', width: '100%', animation: 'shrink 3s linear' }}></div>
+                    </div>
+                </div>
+                <style>{`
+                    @keyframes shrink {
+                        from { width: 100%; }
+                        to { width: 0%; }
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
     return (
         <div className="page" style={{ paddingTop: 80, paddingBottom: 40, background: '#f6f8fb', minHeight: '100vh' }}>
             <Navbar />
@@ -105,7 +137,7 @@ export const CreateListing: React.FC = () => {
                 <section className="card" style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 8px 26px rgba(8,12,24,0.06)' }}>
                     <div style={{ marginBottom: 24 }}>
                         <h2 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 8px' }}>Create new listing</h2>
-                        <p style={{ fontSize: '13px', color: 'var(--muted)' }}>Fill in details. {user.role === 'student' ? <span style={{ color: 'red' }}>Student accounts cannot publish.</span> : 'Your account is authorized to publish.'}</p>
+                        <p style={{ fontSize: '13px', color: 'var(--muted)' }}>Fill in details. Your account is authorized to publish.</p>
                     </div>
 
                     <form onSubmit={handleSubmit}>
@@ -308,7 +340,7 @@ export const CreateListing: React.FC = () => {
                             type="submit"
                             className="btn btn-primary"
                             style={{ width: '100%', padding: 12, opacity: submitting ? 0.7 : 1 }}
-                            disabled={submitting || (user.role === 'student')}
+                            disabled={submitting}
                         >
                             {submitting ? 'Publishing...' : 'Publish Listing'}
                         </button>

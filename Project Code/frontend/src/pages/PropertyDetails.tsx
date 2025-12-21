@@ -3,26 +3,37 @@ import { useParams, Link } from 'react-router-dom';
 import { useProperty } from '../hooks/useProperties';
 import { Layout } from '../components/Layout/Layout';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import clsx from 'clsx';
 
 export const PropertyDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    
+
     // ✅ 修正：直接使用字符串 id，并处理 undefined 情况
     const { property, loading, error } = useProperty(id || '');
-    
+
     const [activeSlide, setActiveSlide] = useState(0);
     const { user } = useAuth();
     const [fav, setFav] = useState(false);
     const [showReportSuccess, setShowReportSuccess] = useState(false);
+    const [existingApplication, setExistingApplication] = useState<any>(null);
+    const [checkingApplication, setCheckingApplication] = useState(true);
 
     // Report Modal State
     const [showReportModal, setShowReportModal] = useState(false);
     const [reportForm, setReportForm] = useState({
-        targetRole: 'landlord',
+        name: '',
         category: 'Fraud / Scam',
         description: ''
     });
+
+    // Rental Apply Modal State
+    const [showApplyModal, setShowApplyModal] = useState(false);
+    const [applyForm, setApplyForm] = useState({
+        message: '',
+        appointmentTime: ''
+    });
+    const [submittingApplication, setSubmittingApplication] = useState(false);
 
     const handleReportClick = () => {
         if (!user) {
@@ -30,19 +41,97 @@ export const PropertyDetails: React.FC = () => {
             return;
         }
         setReportForm({
-            ...reportForm,
-            targetRole: property?.host?.type?.toLowerCase() || 'landlord'
+            name: '',
+            category: 'Fraud / Scam',
+            description: ''
         });
         setShowReportModal(true);
     };
 
-    const handleReportSubmit = (e: React.FormEvent) => {
+    const handleReportSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setShowReportModal(false);
-        // Simulate report success
-        setShowReportSuccess(true);
-        setTimeout(() => setShowReportSuccess(false), 5000);
+        if (!user || !property) return;
+
+        try {
+            // Insert into complaints table - trigger will handle notifications
+            const { error: insertError } = await supabase
+                .from('complaints')
+                .insert({
+                    reporter_id: user.id,
+                    target_type: 'property',
+                    target_id: property.id,
+                    category: reportForm.category,
+                    description: reportForm.description
+                });
+
+            if (insertError) throw insertError;
+
+            setShowReportModal(false);
+            setShowReportSuccess(true);
+            setTimeout(() => setShowReportSuccess(false), 5000);
+        } catch (err) {
+            console.error('Report error:', err);
+            alert('Failed to submit report.');
+        }
     };
+
+    const handleApplyClick = () => {
+        if (!user) {
+            alert("Please log in to apply.");
+            return;
+        }
+        setApplyForm({ message: '', appointmentTime: '' });
+        setShowApplyModal(true);
+    };
+
+    const handleApplySubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user || !property) return;
+
+        setSubmittingApplication(true);
+        try {
+            const { error } = await supabase.from('applications').insert({
+                property_id: property.id,
+                applicant_id: user.id,
+                property_owner_id: property.ownerId,
+                message: applyForm.message,
+                appointment_at: applyForm.appointmentTime || null,
+                status: 'pending',
+                documents: []
+            });
+
+            if (error) throw error;
+
+            setShowApplyModal(false);
+            alert('Application submitted successfully!');
+            setApplyForm({ message: '', appointmentTime: '' });
+        } catch (err) {
+            console.error('Error submitting application:', err);
+            alert('Failed to submit application. Please try again.');
+        } finally {
+            setSubmittingApplication(false);
+        }
+    };
+
+    React.useEffect(() => {
+        const checkApplication = async () => {
+            if (!user || !id) {
+                setCheckingApplication(false);
+                return;
+            }
+            const { data } = await supabase
+                .from('applications')
+                .select('*')
+                .eq('property_id', id)
+                .eq('applicant_id', user.id)
+                .in('status', ['pending', 'accepted'])
+                .in('stage', ['application', 'processing'])
+                .maybeSingle();
+            setExistingApplication(data);
+            setCheckingApplication(false);
+        };
+        checkApplication();
+    }, [user, id]);
 
     if (loading) return <Layout><div className="page">Loading...</div></Layout>;
     if (error || !property) return <Layout><div className="page">Property not found</div></Layout>;
@@ -99,16 +188,21 @@ export const PropertyDetails: React.FC = () => {
                                         disabled
                                     />
 
-                                    <label style={labelStyle}>Complaint Target Role</label>
-                                    <select
+                                    <label style={labelStyle}>Name *</label>
+                                    <input
                                         style={inputStyle}
-                                        value={reportForm.targetRole}
-                                        onChange={e => setReportForm({ ...reportForm, targetRole: e.target.value })}
-                                    >
-                                        <option value="student">Student</option>
-                                        <option value="landlord">Landlord</option>
-                                        <option value="agent">Agent</option>
-                                    </select>
+                                        value={reportForm.name}
+                                        onChange={e => setReportForm({ ...reportForm, name: e.target.value })}
+                                        required
+                                        placeholder="Enter your name"
+                                    />
+
+                                    <label style={labelStyle}>Complaint Target</label>
+                                    <input
+                                        style={{ ...inputStyle, background: '#f5f5f5', color: '#888' }}
+                                        value="Property"
+                                        disabled
+                                    />
 
                                     <label style={labelStyle}>Complaint Category</label>
                                     <select
@@ -149,7 +243,133 @@ export const PropertyDetails: React.FC = () => {
                             </form>
                         </div>
                     </div>
+                )
+
+                }
+
+                {/* Rental Apply Modal */}
+                {showApplyModal && (
+                    <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
+                    }}>
+                        <div className="card" style={{
+                            width: '100%', maxWidth: '550px', background: 'white',
+                            borderRadius: '16px', overflow: 'hidden',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                            border: '3px solid #212529'
+                        }}>
+                            {/* Golden decorative top pattern */}
+                            <div style={{
+                                height: '12px',
+                                background: 'repeating-linear-gradient(90deg, #d4af37 0px, #f4d03f 10px, #d4af37 20px)',
+                                boxShadow: '0 2px 4px rgba(212,175,55,0.3)'
+                            }}></div>
+
+                            <div style={{ padding: '32px 24px 24px' }}>
+                                <h2 style={{
+                                    margin: '0 0 8px',
+                                    fontSize: '26px',
+                                    fontWeight: 800,
+                                    color: '#212529',
+                                    textAlign: 'center'
+                                }}>🏠 Rental Apply</h2>
+                                <p style={{
+                                    textAlign: 'center',
+                                    color: '#6c757d',
+                                    fontSize: '14px',
+                                    marginBottom: '24px'
+                                }}>Submit your application for this property</p>
+
+                                <form onSubmit={handleApplySubmit}>
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={labelStyle}>Name</label>
+                                        <input
+                                            style={{ ...inputStyle, background: '#f8f9fa', color: '#495057', fontWeight: 600 }}
+                                            value={user?.name || 'Not provided'}
+                                            disabled
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={labelStyle}>Identity / Student ID</label>
+                                        <input
+                                            style={{ ...inputStyle, background: '#f8f9fa', color: '#495057', fontWeight: 600 }}
+                                            value={user?.email || 'Not provided'}
+                                            disabled
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={{ ...labelStyle, fontWeight: 600 }}>Application Statement *</label>
+                                        <textarea
+                                            style={{ ...inputStyle, minHeight: '120px', resize: 'vertical', fontFamily: 'inherit' }}
+                                            rows={5}
+                                            placeholder="Tell the landlord why you're a great tenant and any special requirements..."
+                                            required
+                                            value={applyForm.message}
+                                            onChange={e => setApplyForm({ ...applyForm, message: e.target.value })}
+                                        ></textarea>
+                                    </div>
+
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ ...labelStyle, fontWeight: 600 }}>Preferred Appointment Time</label>
+                                        <input
+                                            type="datetime-local"
+                                            style={{ ...inputStyle, cursor: 'pointer' }}
+                                            value={applyForm.appointmentTime}
+                                            onChange={e => setApplyForm({ ...applyForm, appointmentTime: e.target.value })}
+                                        />
+                                        <p style={{ fontSize: '12px', color: '#adb5bd', marginTop: '4px', marginBottom: 0 }}>
+                                            💡 Optional: Schedule a viewing appointment
+                                        </p>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 12 }}>
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary"
+                                            style={{
+                                                flex: 1,
+                                                padding: '14px',
+                                                fontSize: '16px',
+                                                fontWeight: 700,
+                                                background: 'linear-gradient(135deg, #212529 0%, #495057 100%)',
+                                                border: '3px solid #212529'
+                                            }}
+                                            disabled={submittingApplication}
+                                        >
+                                            {submittingApplication ? '⏳ Submitting...' : '✓ Submit Application'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn"
+                                            style={{
+                                                padding: '14px 20px',
+                                                background: '#f8f9fa',
+                                                color: '#495057',
+                                                border: '3px solid #dee2e6',
+                                                fontWeight: 600
+                                            }}
+                                            onClick={() => setShowApplyModal(false)}
+                                            disabled={submittingApplication}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            {/* Golden decorative bottom pattern */}
+                            <div style={{
+                                height: '12px',
+                                background: 'repeating-linear-gradient(90deg, #d4af37 0px, #f4d03f 10px, #d4af37 20px)',
+                                boxShadow: '0 -2px 4px rgba(212,175,55,0.3)'
+                            }}></div>
+                        </div>
+                    </div>
                 )}
+
 
                 {/* Left: Main Content */}
                 <section className="card" aria-labelledby="propTitle">
@@ -221,10 +441,16 @@ export const PropertyDetails: React.FC = () => {
 
                     <div className="section">
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            {user?.role === 'student' && (
-                                <Link to={`/apply/${property.id}`} className="btn btn-primary">Apply now</Link>
+                            {user?.role === 'student' && !checkingApplication && (
+                                existingApplication ? (
+                                    <Link to="/applications" className="btn btn-primary">📄 View Application Status</Link>
+                                ) : (
+                                    <button onClick={handleApplyClick} className="btn btn-primary">🏠 Rental Apply</button>
+                                )
                             )}
-                            <button className="btn btn-ghost">Message host</button>
+                            {(user?.role === 'landlord' || user?.role === 'agent') && user?.id === property.ownerId && (
+                                <Link to="/create-listing" state={{ mode: 'edit', property }} className="btn btn-primary">Edit Property</Link>
+                            )}
                             <button className="btn btn-ghost" style={{ color: '#d32f2f' }} onClick={handleReportClick}>Report</button>
                         </div>
                     </div>

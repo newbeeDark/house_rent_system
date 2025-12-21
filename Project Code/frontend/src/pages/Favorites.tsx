@@ -30,7 +30,7 @@ export const Favorites: React.FC = () => {
     }, [user]);
 
     if (!user) {
-         return (
+        return (
             <div className="page" style={{ paddingTop: 80, paddingBottom: 40, background: '#f6f8fb', minHeight: '100vh' }}>
                 <Navbar />
                 <main className="container" style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px', textAlign: 'center' }}>
@@ -38,7 +38,7 @@ export const Favorites: React.FC = () => {
                     <Link to="/login" className="btn btn-primary" style={{ display: 'inline-block', marginTop: 10, padding: '8px 16px', background: '#007bff', color: '#fff', borderRadius: 4, textDecoration: 'none' }}>Log In</Link>
                 </main>
             </div>
-         );
+        );
     }
 
     return (
@@ -85,7 +85,7 @@ export const Favorites: React.FC = () => {
                                         <div style={{ textAlign: 'right', paddingRight: 8 }}>
                                             <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink)' }}>RM {item.price}</div>
                                             <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 8 }}>/ month</div>
-                                            <Link to={`/contract/${item.id}`} style={{
+                                            <Link to={`/property/${item.id}`} style={{
                                                 display: 'inline-block',
                                                 padding: '6px 12px',
                                                 background: '#e0f7fa',
@@ -95,7 +95,7 @@ export const Favorites: React.FC = () => {
                                                 fontWeight: 600,
                                                 textDecoration: 'none'
                                             }} onClick={(e) => e.stopPropagation()}>
-                                                Draft Contract
+                                                View Property
                                             </Link>
                                         </div>
 

@@ -214,6 +214,7 @@ function transformRowToProperty(row: any): Property {
     // 3. Map Fields
     return {
         id: row.id,
+        ownerId: row.owner_id,
         title: row.title,
         lat: row.latitude || 0,
         lon: row.longitude || 0,
@@ -241,5 +242,43 @@ function transformRowToProperty(row: any): Property {
         availableFrom: row.available_from,
         amenities: row.amenities || []
     };
+}
+
+export async function updateProperty(id: string, payload: Partial<{
+  title: string;
+  description: string | null;
+  price: number;
+  address: string;
+  area: string | null;
+  beds: number;
+  bathrooms: number | null;
+  size_sqm: number | null;
+  kitchen: boolean | null;
+  furnished: 'full' | 'half' | 'none' | null;
+  available_from: string | null;
+  amenities: string[] | null;
+  rules: string[] | null;
+}>): Promise<boolean> {
+  const { error } = await supabase.from('properties').update(payload).eq('id', id);
+  return !error;
+}
+
+export async function deleteImageByUrl(propertyId: string, url: string): Promise<boolean> {
+  const { error } = await supabase.from('property_images').delete().eq('property_id', propertyId).eq('image_url', url);
+  return !error;
+}
+
+export async function uploadImageToBucket(propertyId: string, file: File): Promise<{ url: string; path: string } | null> {
+  const name = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const path = `${propertyId}/${name}-${file.name}`;
+  const { error } = await supabase.storage.from('photos').upload(path, file, { upsert: false });
+  if (error) return null;
+  const { data } = supabase.storage.from('photos').getPublicUrl(path);
+  return { url: data.publicUrl, path };
+}
+
+export async function insertImageRecord(propertyId: string, url: string, is_cover: boolean = false, order_index: number = 0): Promise<boolean> {
+  const { error } = await supabase.from('property_images').insert({ property_id: propertyId, image_url: url, is_cover, order_index });
+  return !error;
 }
 

@@ -10,34 +10,32 @@ interface Message {
     type: 'system' | 'application' | 'general';
 }
 
-const MOCK_MESSAGES: Message[] = [
-    {
-        id: 1,
-        title: "Welcome to UKM Rented!",
-        content: "Thanks for joining. Complete your profile to start exploring properties near UKM.",
-        date: "2025-12-01 09:00",
-        isRead: true,
-        type: 'system'
-    },
-    {
-        id: 2,
-        title: "Application Status Update",
-        content: "Your application for 'Studio near UKM' has been viewed by the landlord.",
-        date: "2025-12-14 14:30",
-        isRead: false,
-        type: 'application'
-    },
-    {
-        id: 3,
-        title: "New Listings Alert",
-        content: "3 new properties match your favorites criteria.",
-        date: "2025-12-13 18:15",
-        isRead: false,
-        type: 'general'
-    }
-];
+import { supabase } from '../lib/supabase';
+import { useEffect, useState } from 'react';
+
+
 
 export const Messages: React.FC = () => {
+    const [messages, setMessages] = useState<Message[]>([]);
+
+    useEffect(() => {
+        async function fetchMessages() {
+            const { data } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
+            if (data) {
+                // Map DB fields to UI fields if necessary, assuming DB matches or we map here
+                setMessages(data.map(m => ({
+                    id: m.id,
+                    title: m.title || 'Notification',
+                    content: m.message || m.content || '',
+                    date: m.created_at,
+                    isRead: m.is_read || false,
+                    type: m.type || 'system'
+                })));
+            }
+        }
+        fetchMessages();
+    }, []);
+
     return (
         <div className="page" style={{ paddingTop: 80, paddingBottom: 40, background: '#f6f8fb', minHeight: '100vh' }}>
             <Navbar />
@@ -49,7 +47,7 @@ export const Messages: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {MOCK_MESSAGES.map(msg => (
+                    {messages.map(msg => (
                         <div key={msg.id} className="card" style={{
                             background: '#fff',
                             borderRadius: 12,
