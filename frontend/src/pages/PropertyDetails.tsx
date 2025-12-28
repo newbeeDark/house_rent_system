@@ -6,6 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import clsx from 'clsx';
 
+const formatFeature = (f: string) => {
+    if (f.toLowerCase() === 'aircon') return 'AirConditioner';
+    return f;
+};
+
 export const PropertyDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
 
@@ -403,8 +408,8 @@ export const PropertyDetails: React.FC = () => {
                         <div>
                             <div className="title" id="pTitle">{property.title}</div>
                             <div className="tiny">
-                                {property.address || property.area} · {property.beds} bed
-                                {property.bathroom ? ` · ${property.bathroom} bath` : ''}
+                                {property.address || property.area} · {property.beds} bedroom
+                                {property.bathroom ? ` · ${property.bathroom} bathroom` : ''}
                                 {property.propertySize ? ` · ${property.propertySize} m²` : ''}
                                 {property.rating ? ` · Rating ${property.rating}` : ''}
                             </div>
@@ -419,11 +424,11 @@ export const PropertyDetails: React.FC = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ fontWeight: 700 }}>Overview</div>
                             <div className="tags">
-                                <div className="feature">{property.beds} Bed</div>
-                                {property.bathroom && <div className="feature">{property.bathroom} Bath</div>}
+                                <div className="feature">{property.beds} Bedroom</div>
+                                {property.bathroom && <div className="feature">{property.bathroom} Bathroom</div>}
                                 {property.kitchen && <div className="feature">Kitchen</div>}
                                 {property.furnished && property.furnished !== 'none' && <div className="feature">{property.furnished === 'full' ? 'Fully Furnished' : 'Partially Furnished'}</div>}
-                                {(property.features || []).slice(0, 2).map(f => <div key={f} className="feature">{f}</div>)}
+                                {(property.features || []).slice(0, 2).map(f => <div key={f} className="feature">{formatFeature(f)}</div>)}
                             </div>
                         </div>
                         <div className="notes">{property.desc}</div>
@@ -435,7 +440,7 @@ export const PropertyDetails: React.FC = () => {
                             <div className="tiny">Listed features</div>
                         </div>
                         <div className="features">
-                            {(property.amenities || property.features || []).map(f => <div key={f} className="feature">{f}</div>)}
+                            {(property.amenities || property.features || []).map(f => <div key={f} className="feature">{formatFeature(f)}</div>)}
                         </div>
                     </div>
 

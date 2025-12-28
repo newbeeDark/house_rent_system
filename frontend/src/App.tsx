@@ -14,12 +14,14 @@ import { Messages } from './pages/Messages';
 import { ContractReport } from './pages/ContractReport';
 import { PlaceholderPage } from './pages/Placeholder';
 import { Diagnostics } from './pages/Diagnostics';
+import ScrollToTop from './components/Common/ScrollToTop';
 import './index.css';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/property/:id" element={<PropertyDetails />} />
