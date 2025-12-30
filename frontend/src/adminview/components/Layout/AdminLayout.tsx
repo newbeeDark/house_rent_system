@@ -1,20 +1,20 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import "../../../assets/admin-theme.css";
 import { useAuth } from "../../../context/AuthContext";
 
 
 // Components
-import { 
-  AdminLayoutDashboardIcon, 
-  AdminBuildingIcon, 
-  AdminUsersIcon, 
-  AdminWrenchIcon, 
+import {
+  AdminLayoutDashboardIcon,
+  AdminBuildingIcon,
+  AdminUsersIcon,
+  AdminWrenchIcon,
   AdminCloseIcon,
   AdminBarChartIcon,
   AdminLogo,
   AdminLogoutIcon,
- 
+
 } from "../UI/AdminIcons";
 
 // Menu Configuration
@@ -173,11 +173,10 @@ const Sidebar: React.FC<{ isOpen: boolean; closeSidebar: () => void }> = ({
                   navigate(item.path);
                   closeSidebar();
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm border border-blue-100"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
+                  ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm border border-blue-100"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
               >
                 <Icon
                   width={20}
@@ -266,11 +265,10 @@ const TopBar: React.FC<{ toggleSidebar: () => void }> = ({ toggleSidebar }) => {
 
           <div className="relative z-10 flex items-center pl-1">
             <div
-              className={`whitespace-nowrap transition-all duration-300 ease-in-out mr-1 ${
-                menuExpanded
-                  ? "text-sm font-medium text-blue-600"
-                  : "text-xl font-bold text-slate-800"
-              }`}
+              className={`whitespace-nowrap transition-all duration-300 ease-in-out mr-1 ${menuExpanded
+                ? "text-sm font-medium text-blue-600"
+                : "text-xl font-bold text-slate-800"
+                }`}
             >
               <span className="inline-block origin-center">
                 <span className="capitalize">{activeItem?.label}</span>
@@ -278,9 +276,8 @@ const TopBar: React.FC<{ toggleSidebar: () => void }> = ({ toggleSidebar }) => {
             </div>
 
             <div
-              className={`flex items-center gap-1 transition-opacity duration-300 ${
-                menuExpanded ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
+              className={`flex items-center gap-1 transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 pointer-events-none"
+                }`}
               // 防止点击子按钮时再触发父容器的 toggle
               onClick={(e) => e.stopPropagation()}
             >
@@ -318,7 +315,7 @@ const TopBar: React.FC<{ toggleSidebar: () => void }> = ({ toggleSidebar }) => {
       </div>
 
       <nav className="flex items-center gap-4">
-        <button 
+        <button
           onClick={() => logout()}
           className="p-2.5 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-50 transition-all relative"
           title="Logout"
