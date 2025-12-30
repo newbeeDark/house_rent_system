@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ProfileSidebar } from './ProfileSidebar';
+import { AIChatModal, AIChatButton } from '../AIFunction';
 
 export const Navbar: React.FC = () => {
     const { user, logout } = useAuth();
     const [isManagementMode, setIsManagementMode] = useState(false);
     const [showSidebar, setShowSidebar] = useState(false);
+    const [showAIChat, setShowAIChat] = useState(false);
 
     // Permission check placeholder
     const canManageProperties = true;
@@ -29,6 +31,9 @@ export const Navbar: React.FC = () => {
                 </div>
 
                 <nav className="actions" role="navigation" aria-label="Main actions" id="topNav">
+                    {/* AI Chat Button - Sparkle Icon (only show when logged in) */}
+                    {user && <AIChatButton onClick={() => setShowAIChat(true)} />}
+
                     {/* Dynamic Navigation Links Based on Mode */}
                     {!isManagementMode ? (
                         // Standard Navigation Mode
@@ -120,6 +125,9 @@ export const Navbar: React.FC = () => {
             </header>
 
             <ProfileSidebar isOpen={showSidebar} onClose={() => setShowSidebar(false)} />
+
+            {/* AI Chat Modal */}
+            <AIChatModal isOpen={showAIChat} onClose={() => setShowAIChat(false)} />
         </>
     );
 };

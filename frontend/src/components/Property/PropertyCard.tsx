@@ -79,10 +79,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 
                 <div className="title-row">
                     <div>
                         <div className="title">{property.title}</div>
-                        <div className="meta">{property.area} · {property.beds} bed · Rating {property.rating}</div>
+                        <div className="meta">{property.area} · {property.beds} bedrooms · {property.furnished} furnished {/*· Rating {property.rating}*/}</div>
                     </div>
                     <div className="tags">
                         {isNearby && <div className="tag nearby">Nearby</div>}
+                        {(property.stats?.views || 0) > 50 && (
+                            <div className="tag" style={{ backgroundColor: '#ffebee', color: '#c62828', borderColor: '#ffcdd2' }}>Hot 🔥</div>
+                        )}
                         <div className="tag">Top pick</div>
                     </div>
                 </div>

@@ -12,6 +12,11 @@ export const HomePage: React.FC = () => {
     const [userLocation, setUserLocation] = useState<{ lat: number, lon: number } | null>(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [jumpPage, setJumpPage] = useState('');
+    const ITEMS_PER_PAGE = 10;
+
     // Filter States
     const [simpleSearch, setSimpleSearch] = useState('');
     const [priceRange, setPriceRange] = useState('all');
@@ -98,6 +103,7 @@ export const HomePage: React.FC = () => {
         }
 
         setSortedProperties(filtered);
+        setCurrentPage(1);
     }, [baseProperties, loading, userLocation, showAdvanced, simpleSearch, priceRange, advFilters]);
 
     const toggleAmenity = (a: string) => {
@@ -105,6 +111,41 @@ export const HomePage: React.FC = () => {
             ...prev,
             amenities: prev.amenities.includes(a) ? prev.amenities.filter(x => x !== a) : [...prev.amenities, a]
         }));
+    };
+
+    // Pagination Logic
+    const totalPages = Math.ceil(sortedProperties.length / ITEMS_PER_PAGE);
+    const currentProperties = sortedProperties.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    const getPageNumbers = () => {
+        const maxButtons = 7;
+        let startPage = Math.max(1, currentPage - 3);
+        let endPage = Math.min(totalPages, currentPage + 3);
+
+        if (endPage - startPage + 1 < maxButtons) {
+            if (currentPage < totalPages / 2) {
+                endPage = Math.min(totalPages, startPage + maxButtons - 1);
+            } else {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+        }
+        
+        startPage = Math.max(1, startPage);
+        endPage = Math.min(totalPages, endPage);
+
+        const pages = [];
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(i);
+        }
+        return pages;
+    };
+
+    const handleJump = () => {
+        const p = parseInt(jumpPage);
+        if (!isNaN(p) && p >= 1 && p <= totalPages) {
+            setCurrentPage(p);
+            setJumpPage('');
+        }
     };
 
     return (
@@ -221,10 +262,36 @@ export const HomePage: React.FC = () => {
                     <div id="listings" className="listings" aria-live="polite" style={{ marginTop: '12px' }}>
                         {loading && <div>Loading...</div>}
                         {!loading && sortedProperties.length === 0 && <div style={{ padding: 20 }}>No properties found.</div>}
-                        {sortedProperties.map((p, idx) => (
+                        {currentProperties.map((p, idx) => (
                             <PropertyCard key={p.id} property={p} delay={idx * 70} />
                         ))}
                     </div>
+
+                    {!loading && sortedProperties.length > 0 && (
+                        <div className="pagination-container">
+                            <div className="pagination-pages">
+                                {getPageNumbers().map(p => (
+                                    <button 
+                                        key={p} 
+                                        onClick={() => setCurrentPage(p)} 
+                                        className={`page-btn ${p === currentPage ? 'active' : ''}`}
+                                    >
+                                        {p}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="pagination-jump">
+                                <input 
+                                    type="number" 
+                                    value={jumpPage} 
+                                    onChange={(e) => setJumpPage(e.target.value)} 
+                                    placeholder="Page"
+                                    className="jump-input"
+                                />
+                                <button onClick={handleJump} className="jump-btn">Jump to</button>
+                            </div>
+                        </div>
+                    )}
                 </section>
 
                 <aside className="sidebar in-view">
@@ -237,7 +304,7 @@ export const HomePage: React.FC = () => {
                             loading="lazy"
                         />
                     </div>
-                    <NearbyList properties={sortedProperties} />
+                    <NearbyList properties={sortedProperties} userLocation={userLocation} />
                 </aside>
             </main>
             <style>{`
@@ -248,6 +315,66 @@ export const HomePage: React.FC = () => {
                     font-size: 13px;
                     width: 100%;
                     box-sizing: border-box;
+                }
+                .pagination-container {
+                    margin-top: 24px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 16px;
+                }
+                .pagination-pages {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                }
+                .page-btn {
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    background: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    color: #666;
+                    transition: all 0.2s;
+                }
+                .page-btn:hover {
+                    background: #f5f5f5;
+                    border-color: #ccc;
+                }
+                .page-btn.active {
+                    background: #2563eb;
+                    color: white;
+                    border-color: #2563eb;
+                }
+                .pagination-jump {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                .jump-input {
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    width: 60px;
+                    text-align: center;
+                }
+                .jump-btn {
+                    padding: 8px 16px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #475569;
+                    transition: all 0.2s;
+                }
+                .jump-btn:hover {
+                    background: #f1f5f9;
+                    border-color: #cbd5e1;
+                    color: #334155;
                 }
             `}</style>
         </Layout>

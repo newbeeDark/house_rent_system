@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Role } from '../types';
 import { supabase } from '../lib/supabase';
+import { clearChatHistory } from '../components/AIFunction/aiService';
 
 interface AuthContextType {
     user: User | null;
@@ -27,9 +28,22 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [user, setUser] = useState<User | null>(() => {
+        // Initialize from localStorage if available
+        const cached = localStorage.getItem('house_rent_user_profile');
+        return cached ? JSON.parse(cached) : null;
+    });
+    const [loading, setLoading] = useState(!user);
     const [error, setError] = useState<string | null>(null);
+
+    const setUserWithCache = (u: User | null) => {
+        setUser(u);
+        if (u) {
+            localStorage.setItem('house_rent_user_profile', JSON.stringify(u));
+        } else {
+            localStorage.removeItem('house_rent_user_profile');
+        }
+    };
 
     const fetchProfile = async (uid: string): Promise<User | null> => {
         for (let i = 0; i < 3; i++) {
@@ -53,26 +67,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const uid = data.user?.id;
         if (!uid) return;
         const profile = await fetchProfile(uid);
-        setUser(profile);
+        setUserWithCache(profile);
     };
 
     useEffect(() => {
+        // Initial session check
         supabase.auth.getSession().then(async ({ data }) => {
             const s = data.session;
             if (s?.user?.id) {
-                const profile = await fetchProfile(s.user.id);
-                setUser(profile);
+                // If we have a cached user and it matches the session ID, we can keep using it
+                // but we should refresh it in background to ensure role is up to date
+                if (!user || user.id !== s.user.id) {
+                    const profile = await fetchProfile(s.user.id);
+                    setUserWithCache(profile);
+                } else {
+                    // Background refresh
+                    fetchProfile(s.user.id).then(profile => {
+                        if (profile) setUserWithCache(profile);
+                    });
+                }
             } else {
-                setUser(null);
+                setUserWithCache(null);
             }
+            setLoading(false);
         });
+
         const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user?.id) {
                 const profile = await fetchProfile(session.user.id);
-                setUser(profile);
+                setUserWithCache(profile);
             } else {
-                setUser(null);
+                setUserWithCache(null);
             }
+            setLoading(false);
         });
         return () => {
             sub.subscription.unsubscribe();
@@ -157,14 +184,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
-            // Clear React state
-            setUser(null);
+            // Clear React state and local cache
+            setUserWithCache(null);
 
-            // Only clear app-specific data, NOT Supabase's auth storage
-            // Remove any app-specific localStorage keys if you have them
-            // Example: localStorage.removeItem('app-specific-key');
-            // DO NOT use localStorage.clear() or sessionStorage.clear()
-            // as it will break Supabase's session persistence
+            // Clear AI chat history so next user starts fresh
+            clearChatHistory();
 
             // Redirect to login page
             window.location.href = '/login';

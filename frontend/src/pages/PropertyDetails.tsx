@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProperty } from '../hooks/useProperties';
+import { PropertyService } from '../services/property.service';
 import { Layout } from '../components/Layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -13,12 +14,48 @@ const formatFeature = (f: string) => {
 
 export const PropertyDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const { user } = useAuth(); // Moved hook to top level
 
     // ✅ 修正：直接使用字符串 id，并处理 undefined 情况
     const { property, loading, error } = useProperty(id || '');
 
+    // Increment view count (Session based: 1 count per session per property)
+    React.useEffect(() => {
+        if (id) {
+            const sessionKey = `viewed_properties_session`;
+            let viewedList: string[] = [];
+            try {
+                const stored = sessionStorage.getItem(sessionKey);
+                if (stored) viewedList = JSON.parse(stored);
+            } catch (e) {
+                console.error("Session storage parse error", e);
+            }
+
+            if (!viewedList.includes(id)) {
+                // 1. Call existing service (Legacy/UI update)
+                PropertyService.incrementViews(id);
+
+                // 2. Insert into Supabase Analytics Log
+                // We use 'then' to avoid making this useEffect async
+                supabase.from('property_views_log').insert({
+                    property_id: id,
+                    viewer_id: user?.id || null
+                }).then(({ error }) => {
+                    if (error) {
+                        console.error("Analytics: Failed to log view", error);
+                    } else {
+                        // Optional: console.log("Analytics: View logged");
+                    }
+                });
+
+                viewedList.push(id);
+                sessionStorage.setItem(sessionKey, JSON.stringify(viewedList));
+            }
+        }
+    }, [id, user?.id]); // Re-run if ID changes. user?.id ensures we have latest user state if it loads quickly.
+
     const [activeSlide, setActiveSlide] = useState(0);
-    const { user } = useAuth();
+    // const { user } = useAuth(); // Removed duplicate call
     const [fav, setFav] = useState(false);
     const [showReportSuccess, setShowReportSuccess] = useState(false);
     const [existingApplication, setExistingApplication] = useState<any>(null);

@@ -99,7 +99,22 @@ export const Login: React.FC = () => {
                 // Don't throw - login was successful, terms update is secondary
             }
 
-            // Step D: Success message and navigation
+            // Step D: Check role and prepare redirect
+            let targetPath = '/';
+            const { data: profile } = await supabase
+                .from('users')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle();
+            
+            // Check both DB profile and metadata for robustness
+            const userRole = profile?.role || user.user_metadata?.role;
+            
+            if (userRole === 'admin') {
+                targetPath = '/admin/dashboard';
+            }
+
+            // Step E: Success message and navigation
             setMsg({ text: 'Signed in successfully — redirecting...', error: false });
 
             if (cardRef.current) {
@@ -107,7 +122,7 @@ export const Login: React.FC = () => {
             }
 
             setTimeout(() => {
-                navigate('/');
+                navigate(targetPath);
             }, 500);
 
         } catch (err: any) {

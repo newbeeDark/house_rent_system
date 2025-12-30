@@ -178,6 +178,13 @@ export const PropertyService = {
              console.error('Error checking favorite:', error);
         }
         return !!data;
+    },
+
+    incrementViews: async (id: string) => {
+        const { data } = await supabase.from('properties').select('views_count').eq('id', id).single();
+        if (data) {
+            await supabase.from('properties').update({ views_count: (data.views_count || 0) + 1 }).eq('id', id);
+        }
     }
 };
 
