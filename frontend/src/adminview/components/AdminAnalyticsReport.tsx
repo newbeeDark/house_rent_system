@@ -480,11 +480,11 @@ Property Market Analytics Data:
                                 </>
                             )}
                         </button>
-                        {/* 导出按钮：启用状态改为只在打印时禁用，有内容时即可导出 */}
-                        {/* Export button: enabled state now only disabled during printing, can export when content exists */}
+                        {/* 导出按钮：只在打印时或无内容时禁用 */}
+                        {/* Export button: disabled only during printing or when no content exists */}
                         <button
                             onClick={handleExportPDF}
-                            disabled={isPrinting}
+                            disabled={isPrinting || (generatedContent.length === 0 && displayedParagraphs.length === 0)}
                             className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-slate-100 font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isPrinting ? (

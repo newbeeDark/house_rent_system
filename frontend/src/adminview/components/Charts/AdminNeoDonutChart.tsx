@@ -49,6 +49,12 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
   const [showLegend, setShowLegend] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const size = 300, center = size / 2, innerRadius = 55, baseThickness = 25, variableThickness = 35;
+  
+  // 折线指示器的位置常量 (Polyline indicator position constants)
+  const INDICATOR_EXTENSION = 30; // 从扇区外沿向外延伸的距离 (Distance to extend from sector edge)
+  const HORIZONTAL_TURN_X = 30; // 水平转折点的X坐标 (X coordinate for horizontal turn point)
+  const TEXT_AREA_X = -20; // 左侧文本区域的X坐标 (X coordinate for left text area)
+  
   const total = useMemo(() => data.reduce((acc, curr) => acc + curr.value, 0), [data]);
   const maxVal = useMemo(() => Math.max(...data.map(d => d.value), 1), [data]);
   const activeItem = hoveredIndex !== null ? data[hoveredIndex] : null;
@@ -131,15 +137,15 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
             // 第一段：从扇区外沿向外延伸一段距离（远离圆环中心，避免穿过扇区）
             // First segment: Extend outward from sector outer edge (away from donut center, avoiding sectors)
             const point1 = polarToCartesian(center, center, seg.outerRadius + 8, seg.midAngle);
-            const point2 = polarToCartesian(center, center, seg.outerRadius + 30, seg.midAngle);
+            const point2 = polarToCartesian(center, center, seg.outerRadius + INDICATOR_EXTENSION, seg.midAngle);
             
             // 第二段：水平拐向左侧（Y坐标保持不变或略微调整，X坐标大幅向左）
             // Second segment: Turn horizontally left (Y stays same or slightly adjusts, X moves far left)
-            const point3 = { x: 30, y: point2.y };
+            const point3 = { x: HORIZONTAL_TURN_X, y: point2.y };
             
             // 第三段：到达左侧文本区域的垂直中心位置
             // Third segment: Reach the vertical center of left text area
-            const point4 = { x: -20, y: center };
+            const point4 = { x: TEXT_AREA_X, y: center };
             
             // 使用polyline路径：point1 -> point2 -> point3 -> point4
             // 这样确保折线不会穿过环状图本体，而是先向外，再向左，最后到达文本区
