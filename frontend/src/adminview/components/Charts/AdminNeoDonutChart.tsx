@@ -71,7 +71,7 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
   const segments = useMemo(() => {
     let cumulativeAngle = 0;
     const wipeAngle = progress * 360;
-    return data.map((item) => {
+    return data.map((item, _i) => {
       const sweepAngle = (item.value / total) * 360;
       const startAngle = cumulativeAngle;
       const endAngle = cumulativeAngle + sweepAngle;

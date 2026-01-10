@@ -149,21 +149,9 @@ Property Market Analytics Data:
         setCurrentCharIndex(0);
         setGenerationComplete(false);
 
-        // 检查缓存（可选，如果需要使用缓存）
-        // Check cache (optional, if cache is needed)
-        const cacheKey = `${AI_ANALYSIS_CACHE_KEY}_${totalProperties}_${totalViews}`;
-        let contentToGenerate = SIMULATED_AI_PARAGRAPHS;
-        
-        try {
-            const cached = sessionStorage.getItem(cacheKey);
-            if (cached) {
-                // 如果有缓存，使用缓存内容但仍然要覆盖显示
-                // If cached, use cached content but still need to overwrite display
-                contentToGenerate = cached.split('\n\n').filter(p => p.trim());
-            }
-        } catch (e) {
-            console.warn('Cache read error:', e);
-        }
+        // 使用预存的模拟段落作为生成内容
+        // Use pre-stored simulated paragraphs as generation content
+        const contentToGenerate = SIMULATED_AI_PARAGRAPHS;
 
         // 将要生成的内容保存到generatedContent，用于后续打印
         // Save content to generatedContent for later printing
@@ -252,8 +240,8 @@ Property Market Analytics Data:
     };
 
     // Print/Export - open new window with printable content
-    // 打印函数：使用当前生成的内容（generatedContent或displayedParagraphs），而不是固定的SIMULATED_AI_PARAGRAPHS
-    // Print function: use currently generated content (generatedContent or displayedParagraphs), not fixed SIMULATED_AI_PARAGRAPHS
+    // 打印函数：使用当前生成的内容（generatedContent），确保打印完整内容
+    // Print function: use currently generated content (generatedContent), ensure complete content is printed
     const handleExportPDF = async () => {
         setIsPrinting(true);
 
@@ -268,9 +256,9 @@ Property Market Analytics Data:
                 return;
             }
 
-            // 使用当前生成的内容而不是预存的SIMULATED_AI_PARAGRAPHS
-            // Use currently generated content instead of pre-stored SIMULATED_AI_PARAGRAPHS
-            const contentToPrint = generatedContent.length > 0 ? generatedContent : displayedParagraphs;
+            // 使用generatedContent确保打印完整内容，只有在生成完成后才使用
+            // Use generatedContent to ensure complete content, only use when generation is complete
+            const contentToPrint = generatedContent.length > 0 ? generatedContent : SIMULATED_AI_PARAGRAPHS;
             const fullAnalysis = contentToPrint.join('</p><p style="margin-top: 12px;">');
 
             const printContent = `
@@ -492,11 +480,11 @@ Property Market Analytics Data:
                                 </>
                             )}
                         </button>
-                        {/* 导出按钮：启用状态改为只在打印时禁用，不再依赖generationComplete */}
-                        {/* Export button: enabled state now only disabled during printing, no longer depends on generationComplete */}
+                        {/* 导出按钮：启用状态改为只在打印时禁用，有内容时即可导出 */}
+                        {/* Export button: enabled state now only disabled during printing, can export when content exists */}
                         <button
                             onClick={handleExportPDF}
-                            disabled={isPrinting || displayedParagraphs.length === 0}
+                            disabled={isPrinting}
                             className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-slate-100 font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isPrinting ? (
