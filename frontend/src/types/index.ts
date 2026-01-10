@@ -100,4 +100,6 @@ export interface ListingDraft {
   furnished?: 'half' | 'full' | 'none';
   availableFrom?: string;
   amenities?: string[];
+  lat?: number;
+  lon?: number;
 }

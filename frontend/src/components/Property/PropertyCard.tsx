@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Property } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { PropertyService } from '../../services/property.service';
-// import clsx from 'clsx'; // Unused
+import { useFavorites } from '../../context/FavoritesContext';
 
 interface PropertyCardProps {
     property: Property;
@@ -12,6 +11,7 @@ interface PropertyCardProps {
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 }) => {
     const { user } = useAuth();
+    const { isFavorite, addFavorite, removeFavorite } = useFavorites();
 
     // Format distance
     const dist = property.distance !== undefined
@@ -19,22 +19,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 
         : '';
 
     const isNearby = property.distance !== undefined && property.distance <= 1.2;
-    const [liked, setLiked] = useState(false);
-    const [toggling, setToggling] = useState(false);
 
-    useEffect(() => {
-        const checkFavorite = async () => {
-            if (user && property.id) {
-                try {
-                    const isFav = await PropertyService.isFavorite(user.id, property.id);
-                    setLiked(isFav);
-                } catch (err) {
-                    console.error('Error checking favorite status:', err);
-                }
-            }
-        };
-        checkFavorite();
-    }, [user, property.id]);
+    // Use O(1) lookup from favorites context instead of database query
+    const liked = isFavorite(property.id);
+    const [toggling, setToggling] = useState(false);
 
     const handleToggleFavorite = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -50,11 +38,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, delay = 0 
         setToggling(true);
         try {
             if (liked) {
-                await PropertyService.removeFromFavorites(user.id, property.id);
-                setLiked(false);
+                await removeFavorite(property.id);
             } else {
-                await PropertyService.addToFavorites(user.id, property.id);
-                setLiked(true);
+                await addFavorite(property.id);
             }
         } catch (err) {
             console.error('Error toggling favorite:', err);

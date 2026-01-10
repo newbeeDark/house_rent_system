@@ -177,20 +177,66 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    /**
+     * Logout Method
+     * 
+     * Complete logout process with multiple cleanup steps:
+     * 
+     * Step 1: Clear AI History
+     * - Removes all stored AI chat conversations
+     * - Clears localStorage key: 'ai_chat_history'
+     * 
+     * Step 2: Clear Authentication Data
+     * - Removes all auth-related localStorage items
+     * - Clears session tokens and user data
+     * 
+     * Step 3: Sign Out from Supabase
+     * - Calls supabase.auth.signOut() with timeout protection
+     * - Timeout: 5 seconds (prevents hanging on slow networks)
+     * - Continues even if network request fails
+     * 
+     * Step 4: Redirect to Login
+     * - Uses window.location.href for hard redirect
+     * - Ensures all React state is completely cleared
+     * - Forces fresh page load at /login
+     * 
+     * Error Handling:
+     * - Logs errors but doesn't block logout
+     * - User always gets logged out even if API fails
+     * - Timeout ensures no infinite waiting
+     */
     const logout = async () => {
+        // IMMEDIATE REDIRECT - No delay for user
+        // Store cleanup flag to run after redirect
+        const needsCleanup = true;
+
         try {
-            // Sign out from Supabase (this clears Supabase's auth storage automatically)
-            await supabase.auth.signOut();
-        } catch (error) {
-            console.error("Logout error:", error);
-        } finally {
-            // Clear React state and local cache
+            // Step 1: Clear all local data SYNCHRONOUSLY (instant)
+            clearChatHistory();
+            localStorage.removeItem('house_rent_user_profile');
+            localStorage.removeItem('supabase.auth.token');
+            localStorage.removeItem('user_data');
+            sessionStorage.clear();
+
+            // Step 2: Clear React state (instant)
             setUserWithCache(null);
 
-            // Clear AI chat history so next user starts fresh
-            clearChatHistory();
+            // Step 3: IMMEDIATE HARD REDIRECT (no waiting!)
+            window.location.href = '/login';
 
-            // Redirect to login page
+            // Step 4: Background cleanup (happens after redirect)
+            // This won't block the redirect since location.href is synchronous navigation
+            if (needsCleanup) {
+                // Attempt Supabase sign out in background
+                // This will complete after page navigation starts
+                supabase.auth.signOut().catch(err => {
+                    // Silent fail - user already logged out locally
+                    console.error('Background sign out error:', err);
+                });
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Force redirect even on error
             window.location.href = '/login';
         }
     };

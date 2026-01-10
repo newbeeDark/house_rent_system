@@ -5,6 +5,8 @@ import { PropertyService } from '../services/property.service';
 import { Layout } from '../components/Layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import PropertyShareModal from '../components/Property/PropertyShareModal';
+import { OSMMap } from '../components/Map/OSMMap';
 import clsx from 'clsx';
 
 const formatFeature = (f: string) => {
@@ -76,6 +78,12 @@ export const PropertyDetails: React.FC = () => {
         appointmentTime: ''
     });
     const [submittingApplication, setSubmittingApplication] = useState(false);
+
+    // Share Modal State
+    const [showShareModal, setShowShareModal] = useState(false);
+
+    // Property Owner Info State
+    const [ownerInfo, setOwnerInfo] = useState<{ name: string; email: string; role: string } | null>(null);
 
     const handleReportClick = () => {
         if (!user) {
@@ -154,6 +162,75 @@ export const PropertyDetails: React.FC = () => {
             setSubmittingApplication(false);
         }
     };
+
+    /**
+     * Location Update Handler
+     * 
+     * Purpose: Persists map location (latitude/longitude) to database
+     * Called when: User updates property location via map interface
+     * 
+     * Database Update:
+     * - Table: properties
+     * - Fields: latitude, longitude
+     * - Method: Uses Supabase client to update record
+     * 
+     * Data Flow:
+     * 1. User interacts with map to set/update location
+     * 2. handleLocationUpdated receives new coordinates
+     * 3. Coordinates saved to properties table
+     * 4. User receives confirmation
+     * 
+     * @param latitude - Decimal latitude coordinate
+     * @param longitude - Decimal longitude coordinate
+     */
+    // @ts-expect-error - Reserved for future map component integration
+    const handleLocationUpdated = async (latitude: number, longitude: number) => {
+        try {
+            if (!property) return;
+
+            // Update property location in database
+            const { error } = await supabase
+                .from('properties')
+                .update({
+                    lat: latitude,
+                    lon: longitude
+                })
+                .eq('id', property.id);
+
+            if (error) throw error;
+
+            alert('Location updated successfully!');
+        } catch (error) {
+            console.error('Failed to update location:', error);
+            alert('Failed to update location. Please try again.');
+        }
+    };
+
+    // Fetch property owner information
+    React.useEffect(() => {
+        const fetchOwnerInfo = async () => {
+            if (!property?.ownerId) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('full_name, email, role')
+                    .eq('id', property.ownerId)
+                    .single();
+
+                if (!error && data) {
+                    setOwnerInfo({
+                        name: data.full_name || 'Unknown',
+                        email: data.email || '',
+                        role: data.role || 'landlord'
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to fetch owner info:', err);
+            }
+        };
+        fetchOwnerInfo();
+    }, [property?.ownerId]);
 
     React.useEffect(() => {
         const checkApplication = async () => {
@@ -412,11 +489,18 @@ export const PropertyDetails: React.FC = () => {
                     </div>
                 )}
 
+                {/* Share Modal */}
+                {showShareModal && property && (
+                    <PropertyShareModal
+                        property={property}
+                        onClose={() => setShowShareModal(false)}
+                    />
+                )}
 
                 {/* Left: Main Content */}
                 <section className="card" aria-labelledby="propTitle">
                     <div className="carousel" id="carousel">
-                        <button className="share-btn" title="Share" onClick={() => navigator.clipboard.writeText(window.location.href)}>🔗</button>
+                        <button className="share-btn" title="Share" onClick={() => setShowShareModal(true)}>🔗</button>
                         <button
                             className="fav-btn"
                             title="Add to favourites"
@@ -493,6 +577,26 @@ export const PropertyDetails: React.FC = () => {
                             {(user?.role === 'landlord' || user?.role === 'agent') && user?.id === property.ownerId && (
                                 <Link to="/create-listing" state={{ mode: 'edit', property }} className="btn btn-primary">Edit Property</Link>
                             )}
+                            <button
+                                onClick={() => setShowShareModal(true)}
+                                className="btn btn-primary"
+                                style={{
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    border: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="18" cy="5" r="3" />
+                                    <circle cx="6" cy="12" r="3" />
+                                    <circle cx="18" cy="19" r="3" />
+                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                                </svg>
+                                Share Property
+                            </button>
                             <button className="btn btn-ghost" style={{ color: '#d32f2f' }} onClick={handleReportClick}>Report</button>
                         </div>
                     </div>
@@ -510,15 +614,34 @@ export const PropertyDetails: React.FC = () => {
                 {/* Right: Host / Details */}
                 <aside className="card" aria-labelledby="hostTitle">
                     <h3>Host information</h3>
-                    {property.host && (
+                    {ownerInfo ? (
                         <div style={{ marginTop: '8px' }} className="host-card">
                             <div className="host-avatar">
-                                {property.host.name.charAt(0).toUpperCase()}
+                                {ownerInfo.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="host-info">
-                                <div style={{ fontWeight: 800 }}>{property.host.name}</div>
-                                <div className="tiny">{property.host.type} · {property.host.contact}</div>
+                                <div style={{ fontWeight: 800 }}>{ownerInfo.name}</div>
+                                <div className="tiny">{ownerInfo.role.charAt(0).toUpperCase() + ownerInfo.role.slice(1)} · {ownerInfo.email}</div>
                             </div>
+                        </div>
+                    ) : (
+                        <div style={{ marginTop: '8px', padding: '12px', background: '#f5f5f5', borderRadius: '8px', fontSize: '14px', color: '#666' }}>
+                            Loading owner information...
+                        </div>
+                    )}
+
+                    {/* Map Component */}
+                    {property.lat && property.lon && (
+                        <div style={{ marginTop: '20px' }}>
+                            <h3 style={{ marginBottom: '12px' }}>Location</h3>
+                            <OSMMap
+                                lat={property.lat}
+                                lon={property.lon}
+                                zoom={15}
+                                height="300px"
+                                marker={true}
+                                popupText={property.title}
+                            />
                         </div>
                     )}
                 </aside>

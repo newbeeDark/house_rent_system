@@ -5,6 +5,7 @@ import { NearbyList } from '../components/Property/NearbyList';
 import { Layout } from '../components/Layout/Layout';
 import type { Property } from '../types';
 import { haversineKm } from '../utils/geo';
+import { OSMMap } from '../components/Map/OSMMap';
 
 export const HomePage: React.FC = () => {
     const { properties: baseProperties, loading } = useProperties();
@@ -89,15 +90,44 @@ export const HomePage: React.FC = () => {
             }
         }
 
-        // Sorting
+        // Classic Recommendation Logic:
+        // 1. Calculate distances (with hardcoded overrides for specific properties)
         if (userLocation) {
             filtered = filtered.map(p => {
-                if (p.lat && p.lon) {
-                    return { ...p, distance: haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon) };
+                let distance = 20.4; // Default fallback distance
+
+                // Hardcoded distances logic as requested
+                const title = p.title.toLowerCase();
+
+                if (title.includes('3br service apt') && title.includes('bangi gateway')) {
+                    distance = 4.2;
+                } else if (title.includes('modern studio unit') && title.includes('evo soho')) {
+                    distance = 6.7;
+                } else if (title.includes('modern studio') && title.includes('kl city')) {
+                    distance = 35.0;
+                } else if (p.lat && p.lon && p.lat !== 0 && p.lon !== 0) {
+                    // Calculate real distance for others if coords exist
+                    distance = haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon);
                 }
-                return p;
+
+                return { ...p, distance };
             });
-            filtered.sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
+
+            // Classic Algorithm:
+            // 1. Filter Bangi properties (Primary Recommendation)
+            // 2. Filter Non-Bangi properties (Secondary)
+            // 3. Sort each group by distance
+
+            const bangiProperties = filtered.filter(p =>
+                p.area && p.area.toLowerCase().includes('bangi')
+            ).sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
+
+            const otherProperties = filtered.filter(p =>
+                !p.area || !p.area.toLowerCase().includes('bangi')
+            ).sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
+
+            // Combine: Bangi first, then others
+            filtered = [...bangiProperties, ...otherProperties];
         } else {
             filtered.sort((a, b) => a.price - b.price);
         }
@@ -129,7 +159,7 @@ export const HomePage: React.FC = () => {
                 startPage = Math.max(1, endPage - maxButtons + 1);
             }
         }
-        
+
         startPage = Math.max(1, startPage);
         endPage = Math.min(totalPages, endPage);
 
@@ -180,11 +210,11 @@ export const HomePage: React.FC = () => {
                             </select>
                             <button
                                 onClick={() => {
-                                    if (navigator.geolocation) {
-                                        navigator.geolocation.getCurrentPosition(p => {
-                                            setUserLocation({ lat: p.coords.latitude, lon: p.coords.longitude });
-                                        });
-                                    }
+                                    // Use UKM FTSM hardcoded coordinates
+                                    setUserLocation({
+                                        lat: 2.9181117799036436,
+                                        lon: 101.7708772058733
+                                    });
                                 }}
                                 className="btn btn-ghost"
                             >
@@ -271,9 +301,9 @@ export const HomePage: React.FC = () => {
                         <div className="pagination-container">
                             <div className="pagination-pages">
                                 {getPageNumbers().map(p => (
-                                    <button 
-                                        key={p} 
-                                        onClick={() => setCurrentPage(p)} 
+                                    <button
+                                        key={p}
+                                        onClick={() => setCurrentPage(p)}
                                         className={`page-btn ${p === currentPage ? 'active' : ''}`}
                                     >
                                         {p}
@@ -281,10 +311,10 @@ export const HomePage: React.FC = () => {
                                 ))}
                             </div>
                             <div className="pagination-jump">
-                                <input 
-                                    type="number" 
-                                    value={jumpPage} 
-                                    onChange={(e) => setJumpPage(e.target.value)} 
+                                <input
+                                    type="number"
+                                    value={jumpPage}
+                                    onChange={(e) => setJumpPage(e.target.value)}
                                     placeholder="Page"
                                     className="jump-input"
                                 />
@@ -296,15 +326,16 @@ export const HomePage: React.FC = () => {
 
                 <aside className="sidebar in-view">
                     <div style={{ fontWeight: 700, marginBottom: 12 }}>Nearby</div>
-                    <div className="map-placeholder" style={{ height: 200, background: '#eee', borderRadius: 8 }}>
-                        <iframe
-                            title="Map"
-                            src="https://maps.google.com/maps?width=100%&height=300&hl=en&q=University%20Kebangsaan%20Malaysia&ie=UTF8&t=&z=14&iwloc=B&output=embed"
-                            style={{ width: '100%', height: '100%', border: 0, borderRadius: 8 }}
-                            loading="lazy"
-                        />
-                    </div>
-                    <NearbyList properties={sortedProperties} userLocation={userLocation} />
+                    <OSMMap
+                        key={userLocation ? `${userLocation.lat}-${userLocation.lon}` : 'default'}
+                        lat={userLocation?.lat || 2.9332}
+                        lon={userLocation?.lon || 101.7648}
+                        zoom={14}
+                        height="200px"
+                        marker={userLocation !== null}
+                        popupText={userLocation ? "Your Location" : "Bangi Gateway"}
+                    />
+                    <NearbyList properties={sortedProperties} userLocation={userLocation} disableSorting={!!userLocation} />
                 </aside>
             </main>
             <style>{`

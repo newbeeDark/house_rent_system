@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { ListingDraft } from '../types';
 import { ListingService } from '../services/listing.service';
+import { LocationInput } from '../components/Map/LocationInput';
 
 
 
@@ -39,7 +40,9 @@ export const CreateListing: React.FC = () => {
         propertyType: existingProperty?.propertyType || 'Apartment',
         furnished: existingProperty?.furnished || 'none',
         availableFrom: existingProperty?.availableFrom || '',
-        amenities: existingProperty?.amenities || existingProperty?.features || []
+        amenities: existingProperty?.amenities || existingProperty?.features || [],
+        lat: existingProperty?.lat || 0,
+        lon: existingProperty?.lon || 0
     });
 
     const [files, setFiles] = useState<File[]>([]);
@@ -277,6 +280,13 @@ export const CreateListing: React.FC = () => {
                             />
                         </div>
 
+                        {/* Location Input with Geocoding */}
+                        <LocationInput
+                            latitude={form.lat || 0}
+                            longitude={form.lon || 0}
+                            address={form.address}
+                            onLocationChange={(lat, lon) => setForm({ ...form, lat, lon })}
+                        />
 
                         <div style={{ marginBottom: 20 }}>
                             <label className="block mb-2 text-sm text-gray-600">Description</label>
