@@ -60,6 +60,10 @@ export const AdminAnalyticsReport: React.FC<AnalyticsReportProps> = ({
     const [currentCharIndex, setCurrentCharIndex] = useState(0);
     const [isTyping, setIsTyping] = useState(false);
     const [generationComplete, setGenerationComplete] = useState(false);
+    
+    // 新增：生成内容状态，用于存储实际生成的段落（可能是预存的或新生成的）
+    // New: Generated content state to store actual generated paragraphs (could be pre-stored or newly generated)
+    const [generatedContent, setGeneratedContent] = useState<string[]>([]);
 
     // Format current date
     const reportDate = new Date().toLocaleDateString('en-MY', {
@@ -134,25 +138,36 @@ Property Market Analytics Data:
     };
 
     // Fast simulated AI generation - completes in ~2 seconds
+    // 生成分析函数：点击时触发，使用打字机效果展示内容并覆盖原有预存内容
+    // Generation function: triggered on click, uses typewriter effect and overwrites pre-stored content
     const startSimulatedGeneration = async () => {
-        // Check cache first
+        // 重置状态，准备新生成
+        // Reset state for new generation
+        setIsGenerating(true);
+        setDisplayedParagraphs([]);
+        setCurrentParagraphIndex(0);
+        setCurrentCharIndex(0);
+        setGenerationComplete(false);
+
+        // 检查缓存（可选，如果需要使用缓存）
+        // Check cache (optional, if cache is needed)
         const cacheKey = `${AI_ANALYSIS_CACHE_KEY}_${totalProperties}_${totalViews}`;
+        let contentToGenerate = SIMULATED_AI_PARAGRAPHS;
+        
         try {
             const cached = sessionStorage.getItem(cacheKey);
             if (cached) {
-                setDisplayedParagraphs(SIMULATED_AI_PARAGRAPHS);
-                setGenerationComplete(true);
-                saveContextToSession(SIMULATED_AI_PARAGRAPHS.join('\n\n'));
-                return;
+                // 如果有缓存，使用缓存内容但仍然要覆盖显示
+                // If cached, use cached content but still need to overwrite display
+                contentToGenerate = cached.split('\n\n').filter(p => p.trim());
             }
         } catch (e) {
             console.warn('Cache read error:', e);
         }
 
-        setIsGenerating(true);
-        setDisplayedParagraphs([]);
-        setCurrentParagraphIndex(0);
-        setCurrentCharIndex(0);
+        // 将要生成的内容保存到generatedContent，用于后续打印
+        // Save content to generatedContent for later printing
+        setGeneratedContent(contentToGenerate);
 
         // Short loading delay - 500ms
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -162,13 +177,15 @@ Property Market Analytics Data:
     };
 
     // Fast typewriter effect - ~2 seconds total for all paragraphs
+    // 使用generatedContent而不是固定的SIMULATED_AI_PARAGRAPHS，确保显示的是最新生成的内容
+    // Use generatedContent instead of fixed SIMULATED_AI_PARAGRAPHS to ensure latest generated content is shown
     useEffect(() => {
-        if (!isTyping || currentParagraphIndex >= SIMULATED_AI_PARAGRAPHS.length) {
-            if (isTyping && currentParagraphIndex >= SIMULATED_AI_PARAGRAPHS.length) {
+        if (!isTyping || currentParagraphIndex >= generatedContent.length) {
+            if (isTyping && currentParagraphIndex >= generatedContent.length) {
                 setIsTyping(false);
                 setGenerationComplete(true);
                 // Cache and save to session
-                const fullText = SIMULATED_AI_PARAGRAPHS.join('\n\n');
+                const fullText = generatedContent.join('\n\n');
                 const cacheKey = `${AI_ANALYSIS_CACHE_KEY}_${totalProperties}_${totalViews}`;
                 try {
                     sessionStorage.setItem(cacheKey, fullText);
@@ -180,7 +197,7 @@ Property Market Analytics Data:
             return;
         }
 
-        const currentParagraph = SIMULATED_AI_PARAGRAPHS[currentParagraphIndex];
+        const currentParagraph = generatedContent[currentParagraphIndex];
 
         if (currentCharIndex < currentParagraph.length) {
             // FAST: Type 15 characters at a time, 20ms interval = ~2 sec total
@@ -204,14 +221,20 @@ Property Market Analytics Data:
 
             return () => clearTimeout(timeout);
         }
-    }, [isTyping, currentParagraphIndex, currentCharIndex, totalProperties, totalViews]);
+    }, [isTyping, currentParagraphIndex, currentCharIndex, generatedContent, totalProperties, totalViews]);
 
+    // 注释掉自动启动生成的逻辑，改为手动点击触发
+    // Comment out auto-start generation logic, change to manual click trigger
+    // 原因：需求要求"点击生成分析"而不是打开弹窗自动开始
+    // Reason: Requirements specify "click to generate analysis" instead of auto-start on modal open
+    /*
     // Auto-start generation when modal opens
     useEffect(() => {
         if (isOpen && !generationComplete && !isGenerating && !isTyping && displayedParagraphs.length === 0) {
             startSimulatedGeneration();
         }
     }, [isOpen]);
+    */
 
     // Reset state when modal closes
     useEffect(() => {
@@ -229,6 +252,8 @@ Property Market Analytics Data:
     };
 
     // Print/Export - open new window with printable content
+    // 打印函数：使用当前生成的内容（generatedContent或displayedParagraphs），而不是固定的SIMULATED_AI_PARAGRAPHS
+    // Print function: use currently generated content (generatedContent or displayedParagraphs), not fixed SIMULATED_AI_PARAGRAPHS
     const handleExportPDF = async () => {
         setIsPrinting(true);
 
@@ -243,7 +268,10 @@ Property Market Analytics Data:
                 return;
             }
 
-            const fullAnalysis = SIMULATED_AI_PARAGRAPHS.join('</p><p style="margin-top: 12px;">');
+            // 使用当前生成的内容而不是预存的SIMULATED_AI_PARAGRAPHS
+            // Use currently generated content instead of pre-stored SIMULATED_AI_PARAGRAPHS
+            const contentToPrint = generatedContent.length > 0 ? generatedContent : displayedParagraphs;
+            const fullAnalysis = contentToPrint.join('</p><p style="margin-top: 12px;">');
 
             const printContent = `
 <!DOCTYPE html>
@@ -445,9 +473,30 @@ Property Market Analytics Data:
                         <p className="text-slate-300 text-xs mt-0.5">{reportDate}</p>
                     </div>
                     <div className="flex items-center gap-3">
+                        {/* 新增：生成分析按钮，点击触发生成并覆盖原有内容 */}
+                        {/* New: Generate Analysis button, click to trigger generation and overwrite existing content */}
+                        <button
+                            onClick={startSimulatedGeneration}
+                            disabled={isGenerating || isTyping}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isGenerating || isTyping ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    <span>Generating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>🤖</span>
+                                    <span>Generate Analysis</span>
+                                </>
+                            )}
+                        </button>
+                        {/* 导出按钮：启用状态改为只在打印时禁用，不再依赖generationComplete */}
+                        {/* Export button: enabled state now only disabled during printing, no longer depends on generationComplete */}
                         <button
                             onClick={handleExportPDF}
-                            disabled={isPrinting || !generationComplete}
+                            disabled={isPrinting || displayedParagraphs.length === 0}
                             className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-slate-100 font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isPrinting ? (

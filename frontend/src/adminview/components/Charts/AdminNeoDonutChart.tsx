@@ -71,7 +71,7 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
   const segments = useMemo(() => {
     let cumulativeAngle = 0;
     const wipeAngle = progress * 360;
-    return data.map((item, _i) => {
+    return data.map((item) => {
       const sweepAngle = (item.value / total) * 360;
       const startAngle = cumulativeAngle;
       const endAngle = cumulativeAngle + sweepAngle;
@@ -123,12 +123,29 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
             const isHovered = hoveredIndex === i;
             const d = describeArcShape(center, center, innerRadius, seg.outerRadius, seg.startAngle, seg.endAngle);
             const startP = polarToCartesian(center, center, seg.outerRadius + 4, seg.midAngle);
-            // Indicator line calculation
-            const lineStart = polarToCartesian(center, center, seg.outerRadius + 8, seg.midAngle);
-            // We want the line to point to the left side where the text is displayed
-            // The text is vertically centered in the left column.
-            // The SVG is centered. So we point to (0, center) or slightly outside to the left (-40, center).
-            const lineEnd = { x: -20, y: center };
+            
+            // 计算折线路径的关键点 (Calculate polyline path key points)
+            // 目标：从扇区外沿向外延伸，然后折向左侧，避免穿过环状图本体
+            // Goal: Extend outward from sector edge, then turn left, avoiding passing through donut body
+            
+            // 第一段：从扇区外沿向外延伸一段距离（远离圆环中心，避免穿过扇区）
+            // First segment: Extend outward from sector outer edge (away from donut center, avoiding sectors)
+            const point1 = polarToCartesian(center, center, seg.outerRadius + 8, seg.midAngle);
+            const point2 = polarToCartesian(center, center, seg.outerRadius + 30, seg.midAngle);
+            
+            // 第二段：水平拐向左侧（Y坐标保持不变或略微调整，X坐标大幅向左）
+            // Second segment: Turn horizontally left (Y stays same or slightly adjusts, X moves far left)
+            const point3 = { x: 30, y: point2.y };
+            
+            // 第三段：到达左侧文本区域的垂直中心位置
+            // Third segment: Reach the vertical center of left text area
+            const point4 = { x: -20, y: center };
+            
+            // 使用polyline路径：point1 -> point2 -> point3 -> point4
+            // 这样确保折线不会穿过环状图本体，而是先向外，再向左，最后到达文本区
+            // Use polyline path: point1 -> point2 -> point3 -> point4
+            // This ensures the line doesn't pass through donut body: outward first, then left, then to text area
+            const polylinePath = `M ${point1.x},${point1.y} L ${point2.x},${point2.y} L ${point3.x},${point3.y} L ${point4.x},${point4.y}`;
 
             return (
               <g key={i} onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)} className="cursor-pointer">
@@ -141,18 +158,17 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
                 <circle cx={startP.x} cy={startP.y} r="2.8" fill={seg.color} opacity={0.9} />
                 <circle cx={startP.x} cy={startP.y} r="1.2" fill="white" />
 
-                {/* Indicator Line (Only when hovered) */}
+                {/* 指示折线（仅在hover时显示，连接点已隐藏）Indicator polyline (only shown on hover, connection dots hidden) */}
                 {isHovered && (
                   <>
-                    <path d={`M ${lineStart.x},${lineStart.y} L ${lineEnd.x},${lineEnd.y}`}
+                    <path d={polylinePath}
                       fill="none" stroke="black" strokeWidth="1.5"
                       strokeDasharray="300" strokeDashoffset="0"
                       className="animate-draw-line"
                     >
                       <animate attributeName="stroke-dashoffset" from="300" to="0" dur="0.4s" fill="freeze" />
                     </path>
-                    <circle cx={lineStart.x} cy={lineStart.y} r="2" fill="black" />
-                    <circle cx={lineEnd.x} cy={lineEnd.y} r="2" fill="black" />
+                    {/* 连接点圆点已隐藏，只保留折线 Connection dots hidden, only polyline remains */}
                   </>
                 )}
               </g>
