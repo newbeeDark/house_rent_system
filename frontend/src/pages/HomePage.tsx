@@ -90,23 +90,17 @@ export const HomePage: React.FC = () => {
             }
         }
 
-        // Classic Recommendation Logic:
-        // 1. Calculate distances (with hardcoded overrides for specific properties)
+        // 距离计算逻辑（已移除硬编码）
+        // Distance calculation logic (hardcoded values removed)
+        // 所有属性使用实际坐标计算距离，无坐标则使用默认值
+        // All properties use actual coordinates for distance, default for missing coords
         if (userLocation) {
             filtered = filtered.map(p => {
-                let distance = 20.4; // Default fallback distance
+                let distance = 20.4; // 默认距离（无坐标时）- Default distance when no coords
 
-                // Hardcoded distances logic as requested
-                const title = p.title.toLowerCase();
-
-                if (title.includes('3br service apt') && title.includes('bangi gateway')) {
-                    distance = 4.2;
-                } else if (title.includes('modern studio unit') && title.includes('evo soho')) {
-                    distance = 6.7;
-                } else if (title.includes('modern studio') && title.includes('kl city')) {
-                    distance = 35.0;
-                } else if (p.lat && p.lon && p.lat !== 0 && p.lon !== 0) {
-                    // Calculate real distance for others if coords exist
+                // 如果有有效坐标，计算实际距离
+                // If valid coordinates exist, calculate real distance
+                if (p.lat && p.lon && p.lat !== 0 && p.lon !== 0) {
                     distance = haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon);
                 }
 

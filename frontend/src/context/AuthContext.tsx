@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Role } from '../types';
 import { supabase } from '../lib/supabase';
@@ -29,12 +29,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(() => {
+        // 从localStorage初始化用户状态（如果可用）
         // Initialize from localStorage if available
         const cached = localStorage.getItem('house_rent_user_profile');
         return cached ? JSON.parse(cached) : null;
     });
     const [loading, setLoading] = useState(!user);
     const [error, setError] = useState<string | null>(null);
+
+    // 防抖引用 - 防止标签页切换时快速状态变化
+    // Debounce ref - prevents rapid state changes on tab switch
+    const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    // 是否正在获取profile的标志
+    // Flag to indicate if profile fetch is in progress
+    const isFetchingRef = useRef<boolean>(false);
 
     const setUserWithCache = (u: User | null) => {
         setUser(u);
@@ -62,29 +70,58 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return null;
     };
 
+    /**
+     * 安全的profile获取函数（带防抖）
+     * Safe profile fetch with debounce to prevent race conditions
+     * 如果profile获取失败，不会清除现有用户状态
+     * If profile fetch fails, existing user state is NOT cleared
+     */
+    const safeFetchProfile = useCallback(async (uid: string, forceUpdate: boolean = false) => {
+        // 如果已经在获取中，跳过
+        // Skip if already fetching
+        if (isFetchingRef.current && !forceUpdate) {
+            console.log('AuthContext: Skipping fetch, already in progress');
+            return;
+        }
+
+        isFetchingRef.current = true;
+        try {
+            const profile = await fetchProfile(uid);
+            if (profile) {
+                setUserWithCache(profile);
+            } else {
+                // profile获取失败时，不清除现有用户状态（除非明确登出）
+                // Don't clear existing user on fetch failure (unless explicit sign out)
+                console.warn('AuthContext: Profile fetch returned null, keeping existing user state');
+            }
+        } catch (err) {
+            console.error('AuthContext: Profile fetch error', err);
+            // 错误时也不清除用户状态
+            // Don't clear user on error either
+        } finally {
+            isFetchingRef.current = false;
+        }
+    }, []);
+
     const refreshProfile = async () => {
         const { data } = await supabase.auth.getUser();
         const uid = data.user?.id;
         if (!uid) return;
-        const profile = await fetchProfile(uid);
-        setUserWithCache(profile);
+        await safeFetchProfile(uid, true);
     };
 
     useEffect(() => {
-        // Initial session check
+        // 初始会话检查 - Initial session check
         supabase.auth.getSession().then(async ({ data }) => {
             const s = data.session;
             if (s?.user?.id) {
-                // If we have a cached user and it matches the session ID, we can keep using it
-                // but we should refresh it in background to ensure role is up to date
+                // 如果有缓存用户且ID匹配，使用缓存并在后台刷新
+                // If we have cached user and ID matches, use cache and refresh in background
                 if (!user || user.id !== s.user.id) {
-                    const profile = await fetchProfile(s.user.id);
-                    setUserWithCache(profile);
+                    await safeFetchProfile(s.user.id, true);
                 } else {
-                    // Background refresh
-                    fetchProfile(s.user.id).then(profile => {
-                        if (profile) setUserWithCache(profile);
-                    });
+                    // 后台静默刷新 - Background silent refresh
+                    safeFetchProfile(s.user.id, false);
                 }
             } else {
                 setUserWithCache(null);
@@ -92,17 +129,62 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setLoading(false);
         });
 
-        const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session?.user?.id) {
-                const profile = await fetchProfile(session.user.id);
-                setUserWithCache(profile);
-            } else {
+        /**
+         * 认证状态变化监听器（带防抖和事件过滤）
+         * Auth state change listener with debounce and event filtering
+         * 
+         * 关键修复：
+         * 1. 只在 SIGNED_IN 和 SIGNED_OUT 事件时更新用户状态
+         * 2. TOKEN_REFRESHED 事件使用防抖，不立即刷新
+         * 3. 防止标签页切换触发的快速状态变化
+         */
+        const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('AuthContext: Auth state change', event);
+
+            // 只处理关键事件 - Only handle critical events
+            if (event === 'SIGNED_OUT') {
+                // 明确登出，清除用户状态
+                // Explicit sign out, clear user state
                 setUserWithCache(null);
+                setLoading(false);
+                return;
             }
-            setLoading(false);
+
+            if (event === 'SIGNED_IN') {
+                // 新登录，立即获取profile
+                // New sign in, fetch profile immediately
+                if (session?.user?.id) {
+                    await safeFetchProfile(session.user.id, true);
+                }
+                setLoading(false);
+                return;
+            }
+
+            // TOKEN_REFRESHED 和其他事件使用防抖
+            // TOKEN_REFRESHED and other events use debounce
+            if (event === 'TOKEN_REFRESHED' && session?.user?.id) {
+                // 清除之前的防抖计时器
+                if (fetchDebounceRef.current) {
+                    clearTimeout(fetchDebounceRef.current);
+                }
+                // 延迟1秒后刷新，防止快速切换
+                // Delay 1 second before refresh to prevent rapid switching
+                fetchDebounceRef.current = setTimeout(() => {
+                    safeFetchProfile(session.user.id, false);
+                }, 1000);
+                return;
+            }
+
+            // INITIAL_SESSION 事件不需要处理，因为已经在上面的 getSession 中处理了
+            // INITIAL_SESSION doesn't need handling, already handled in getSession above
         });
+
         return () => {
             sub.subscription.unsubscribe();
+            // 清理防抖计时器
+            if (fetchDebounceRef.current) {
+                clearTimeout(fetchDebounceRef.current);
+            }
         };
     }, []);
 

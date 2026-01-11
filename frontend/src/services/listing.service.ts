@@ -19,6 +19,9 @@ type DbPropertyInsert = {
   amenities?: string[] | null;
   rules?: string[] | null;
   status?: 'active' | 'rented' | 'delisted' | null;
+  // 添加经纬度字段 - Add latitude/longitude fields
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 type ImageRecord = {
@@ -30,6 +33,12 @@ type ImageRecord = {
 
 const BUCKET = 'photos';
 
+/**
+ * 转换表单数据为数据库插入格式
+ * Convert form data to database insert format
+ * 包含经纬度坐标的处理
+ * Includes latitude/longitude coordinate handling
+ */
 function toDbPayload(form: ListingDraft, userId: string): DbPropertyInsert {
   return {
     owner_id: userId,
@@ -49,6 +58,10 @@ function toDbPayload(form: ListingDraft, userId: string): DbPropertyInsert {
     amenities: form.amenities?.length ? form.amenities : null,
     rules: null,
     status: 'active',
+    // 经纬度：只有有效值时才插入，0或undefined不插入
+    // Latitude/Longitude: only insert valid values, 0 or undefined will be null
+    latitude: form.lat && form.lat !== 0 ? Number(form.lat) : null,
+    longitude: form.lon && form.lon !== 0 ? Number(form.lon) : null,
   };
 }
 

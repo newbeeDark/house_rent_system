@@ -9,15 +9,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Create a single supabase client for interacting with your database
+// 创建单一Supabase客户端用于数据库交互
 export const supabase = createClient(
     supabaseUrl || '',
     supabaseAnonKey || '',
     {
         auth: {
-            storage: sessionStorage, // 使用 sessionStorage 替代 localStorage，实现"页面关闭即失效"
+            // 使用localStorage替代sessionStorage，确保标签页切换时会话稳定
+            // Use localStorage instead of sessionStorage for stable session across tab switches
+            storage: localStorage,
             autoRefreshToken: true,
             persistSession: true,
             detectSessionInUrl: true
+        },
+        // 全局请求头配置 - 修复标签页切换后的406错误
+        // Global headers configuration - fixes 406 error after tab switch
+        global: {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            }
         }
     }
 );

@@ -85,18 +85,19 @@ export const Favorites: React.FC = () => {
                                         <div style={{ textAlign: 'right', paddingRight: 8 }}>
                                             <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink)' }}>RM {item.price}</div>
                                             <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 8 }}>/ month</div>
-                                            <Link to={`/property/${item.id}`} style={{
+                                            {/* 使用span替代Link避免嵌套<a>标签错误 */}
+                                            {/* Use span instead of Link to avoid nested <a> tag error */}
+                                            <span style={{
                                                 display: 'inline-block',
                                                 padding: '6px 12px',
                                                 background: '#e0f7fa',
                                                 color: '#006064',
                                                 borderRadius: 6,
                                                 fontSize: '12px',
-                                                fontWeight: 600,
-                                                textDecoration: 'none'
-                                            }} onClick={(e) => e.stopPropagation()}>
+                                                fontWeight: 600
+                                            }}>
                                                 View Property
-                                            </Link>
+                                            </span>
                                         </div>
 
                                     </div>

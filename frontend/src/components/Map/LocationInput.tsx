@@ -11,22 +11,14 @@ export interface LocationInputProps {
 
 /**
  * Location Input Component with Geocoding
+ * 位置输入组件（带地理编码）
  * 
  * Features:
- * - Manual lat/lon input fields
- * - 📍 Geocode button to convert address to coordinates
- * - Live map preview
- * - Fallback to default UKM location
- * 
- * Usage:
- * ```tsx
- * <LocationInput
- *   latitude={form.lat}
- *   longitude={form.lon}
- *   address={form.address}
- *   onLocationChange={(lat, lon) => setForm({ ...form, lat, lon })}
- * />
- * ```
+ * - Manual lat/lon input fields 手动经纬度输入
+ * - 📍 Find Location button: uses entered coords OR geocodes address
+ *   查找位置按钮：优先使用输入的坐标，否则根据地址查找
+ * - Live map preview 实时地图预览
+ * - Fallback to default UKM location 默认UKM位置
  */
 export const LocationInput: React.FC<LocationInputProps> = ({
     latitude,
@@ -37,28 +29,48 @@ export const LocationInput: React.FC<LocationInputProps> = ({
     const [geocoding, setGeocoding] = useState(false);
     const [geocodeError, setGeocodeError] = useState<string | null>(null);
 
-    const handleGeocode = async () => {
+    /**
+     * 查找位置处理函数
+     * Find Location handler
+     * 
+     * 优先级：
+     * 1. 如果已输入有效坐标，直接使用这些坐标
+     * 2. 否则，根据地址进行地理编码
+     * 3. 如果都失败，使用默认坐标
+     */
+    const handleFindLocation = async () => {
+        setGeocodeError(null);
+
+        // 1. 如果已输入有效坐标（非0），直接使用
+        // If valid coordinates are entered (non-zero), use them directly
+        if (latitude && longitude && latitude !== 0 && longitude !== 0) {
+            // 坐标已经设置，只需要触发地图更新
+            // Coordinates already set, just trigger map update
+            onLocationChange(latitude, longitude);
+            return;
+        }
+
+        // 2. 如果没有坐标但有地址，尝试地理编码
+        // If no coordinates but has address, try geocoding
         if (!address || address.trim().length === 0) {
-            setGeocodeError('Please enter an address first');
+            setGeocodeError('Please enter coordinates or an address first');
             return;
         }
 
         setGeocoding(true);
-        setGeocodeError(null);
 
         try {
             const result: GeocodeResult | null = await geocodeAddress(address);
 
             if (result) {
                 onLocationChange(result.lat, result.lon);
-                alert(`Location found: ${result.displayName}`);
             } else {
                 setGeocodeError('Location not found. Using default UKM location.');
                 onLocationChange(DEFAULT_COORDS.lat, DEFAULT_COORDS.lon);
             }
         } catch (error) {
             console.error('Geocoding failed:', error);
-            setGeocodeError('Geocoding failed. Please try again or enter coordinates manually.');
+            setGeocodeError('Geocoding failed. Please enter coordinates manually.');
         } finally {
             setGeocoding(false);
         }
@@ -100,13 +112,13 @@ export const LocationInput: React.FC<LocationInputProps> = ({
                     <label className="block text-xs mb-1 text-gray-500" style={{ visibility: 'hidden' }}>Action</label>
                     <button
                         type="button"
-                        onClick={handleGeocode}
-                        disabled={geocoding || !address}
+                        onClick={handleFindLocation}
+                        disabled={geocoding}
                         className="btn btn-primary"
                         style={{
                             padding: '8px 16px',
-                            opacity: geocoding || !address ? 0.5 : 1,
-                            cursor: geocoding || !address ? 'not-allowed' : 'pointer',
+                            opacity: geocoding ? 0.5 : 1,
+                            cursor: geocoding ? 'not-allowed' : 'pointer',
                             whiteSpace: 'nowrap'
                         }}
                     >

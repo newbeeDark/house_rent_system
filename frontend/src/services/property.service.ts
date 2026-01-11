@@ -68,13 +68,16 @@ export const PropertyService = {
         }
 
         // 2. Fetch Profiles (Manual Join)
+        // 2. 获取用户资料（手动连接）
+        // 使用 public_user_profiles 表代替 users 表，支持未登录用户访问
+        // Use public_user_profiles table instead of users for public access
         const ownerIds = Array.from(new Set(props.map((p: any) => p.owner_id).filter(Boolean)));
         let profilesMap: Record<string, any> = {};
 
         if (ownerIds.length > 0) {
             const { data: profiles, error: profError } = await supabase
-                .from('users')
-                .select('id, full_name, role, phone, created_at, agency_name, avatar_url')
+                .from('public_user_profiles')  // 使用公开用户资料表
+                .select('id, full_name, agency_name, avatar_url')
                 .in('id', ownerIds);
 
             if (!profError && profiles) {
@@ -108,12 +111,13 @@ export const PropertyService = {
             return undefined;
         }
 
-        // 2. Fetch Profile
+        // 2. Fetch Profile from public_user_profiles
+        // 2. 从公开用户资料表获取用户信息
         let profile = null;
         if (row.owner_id) {
             const { data: prof } = await supabase
-                .from('users')
-                .select('id, full_name, role, phone, created_at, agency_name, avatar_url')
+                .from('public_user_profiles')  // 使用公开用户资料表
+                .select('id, full_name, agency_name, avatar_url')
                 .eq('id', row.owner_id)
                 .single();
             profile = prof;

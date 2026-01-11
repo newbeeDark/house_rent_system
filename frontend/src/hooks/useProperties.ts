@@ -10,7 +10,6 @@ export const useProperties = () => {
     useEffect(() => {
         const fetchProps = async () => {
             try {
-                setLoading(true);
                 const data = await PropertyService.getAll();
                 setProperties(data);
             } catch (err: any) {

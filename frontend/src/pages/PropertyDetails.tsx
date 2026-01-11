@@ -207,22 +207,25 @@ export const PropertyDetails: React.FC = () => {
     };
 
     // Fetch property owner information
+    // 获取房产所有者信息
     React.useEffect(() => {
         const fetchOwnerInfo = async () => {
             if (!property?.ownerId) return;
 
             try {
+                // 使用 public_user_profiles 表代替 users 表，支持公开访问
+                // Use public_user_profiles table instead of users for public access
                 const { data, error } = await supabase
-                    .from('users')
-                    .select('full_name, email, role')
+                    .from('public_user_profiles')
+                    .select('full_name, agency_name, avatar_url')
                     .eq('id', property.ownerId)
                     .single();
 
                 if (!error && data) {
                     setOwnerInfo({
-                        name: data.full_name || 'Unknown',
-                        email: data.email || '',
-                        role: data.role || 'landlord'
+                        name: data.full_name || data.agency_name || 'Unknown',
+                        email: '', // public_user_profiles doesn't expose email
+                        role: 'landlord' // default role since not in public table
                     });
                 }
             } catch (err) {
