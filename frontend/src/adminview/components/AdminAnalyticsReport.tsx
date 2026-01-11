@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { AdminCloseIcon, AdminDownloadIcon } from './UI/AdminIcons';
 import { useAuth } from '../../context/AuthContext';
+// 导入AI分析报告生成服务
+import { generateAiAnalysisReport } from '../services/analyticsAiService';
 
 interface ChartData {
     label: string;
@@ -54,12 +56,18 @@ export const AdminAnalyticsReport: React.FC<AnalyticsReportProps> = ({
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
 
-    // Typewriter animation state
+    // 打字机动画状态 - Typewriter animation state
     const [displayedParagraphs, setDisplayedParagraphs] = useState<string[]>([]);
     const [currentParagraphIndex, setCurrentParagraphIndex] = useState(0);
     const [currentCharIndex, setCurrentCharIndex] = useState(0);
     const [isTyping, setIsTyping] = useState(false);
     const [generationComplete, setGenerationComplete] = useState(false);
+
+    // AI生成的报告段落 - 用于存储实际AI API返回的分析结果
+    // AI-generated report paragraphs - stores actual AI API analysis results
+    const [aiGeneratedParagraphs, setAiGeneratedParagraphs] = useState<string[]>([]);
+    // AI生成错误信息
+    const [aiError, setAiError] = useState<string | null>(null);
 
     // Format current date
     const reportDate = new Date().toLocaleDateString('en-MY', {
@@ -133,9 +141,10 @@ Property Market Analytics Data:
         }
     };
 
-    // Fast simulated AI generation - completes in ~2 seconds
+    // 快速模拟AI生成 - 约2秒完成（用于默认显示）
+    // Fast simulated AI generation - completes in ~2 seconds (for default display)
     const startSimulatedGeneration = async () => {
-        // Check cache first
+        // 首先检查缓存 - Check cache first
         const cacheKey = `${AI_ANALYSIS_CACHE_KEY}_${totalProperties}_${totalViews}`;
         try {
             const cached = sessionStorage.getItem(cacheKey);
@@ -154,21 +163,76 @@ Property Market Analytics Data:
         setCurrentParagraphIndex(0);
         setCurrentCharIndex(0);
 
-        // Short loading delay - 500ms
+        // 短暂加载延迟 - 500毫秒
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setIsGenerating(false);
         setIsTyping(true);
     };
 
+    /**
+     * 调用DeepSeek API生成真实的AI分析报告
+     * 点击"Generate Analysis"按钮时触发
+     * Call DeepSeek API to generate real AI analysis report
+     * Triggered when clicking "Generate Analysis" button
+     */
+    const handleGenerateAiAnalysis = async () => {
+        // 重置状态 - Reset state
+        setIsGenerating(true);
+        setAiError(null);
+        setDisplayedParagraphs([]);
+        setCurrentParagraphIndex(0);
+        setCurrentCharIndex(0);
+        setGenerationComplete(false);
+        setAiGeneratedParagraphs([]);
+
+        try {
+            // 调用AI服务生成分析报告
+            // Call AI service to generate analysis report
+            const paragraphs = await generateAiAnalysisReport({
+                regionalData,
+                priceData,
+                amenitiesData,
+                popularityData,
+                popMetric,
+                totalProperties,
+                totalViews,
+                avgPrice: getAveragePrice()
+            });
+
+            // 存储AI生成的段落 - Store AI-generated paragraphs
+            setAiGeneratedParagraphs(paragraphs);
+            setIsGenerating(false);
+
+            // 开始打字机效果显示AI生成的内容
+            // Start typewriter effect to display AI-generated content
+            setIsTyping(true);
+        } catch (error: any) {
+            console.error('AI analysis generation failed:', error);
+            setAiError(error.message || 'Failed to generate AI analysis');
+            setIsGenerating(false);
+
+            // 失败时回退到模拟数据 - Fallback to simulated data on failure
+            setDisplayedParagraphs(SIMULATED_AI_PARAGRAPHS);
+            setGenerationComplete(true);
+        }
+    };
+
+    // 快速打字机效果 - 所有段落约2秒完成
     // Fast typewriter effect - ~2 seconds total for all paragraphs
     useEffect(() => {
-        if (!isTyping || currentParagraphIndex >= SIMULATED_AI_PARAGRAPHS.length) {
-            if (isTyping && currentParagraphIndex >= SIMULATED_AI_PARAGRAPHS.length) {
+        // 确定使用哪个段落源：AI生成的或模拟的
+        // Determine which paragraph source to use: AI-generated or simulated
+        const paragraphSource = aiGeneratedParagraphs.length > 0
+            ? aiGeneratedParagraphs
+            : SIMULATED_AI_PARAGRAPHS;
+
+        if (!isTyping || currentParagraphIndex >= paragraphSource.length) {
+            if (isTyping && currentParagraphIndex >= paragraphSource.length) {
                 setIsTyping(false);
                 setGenerationComplete(true);
-                // Cache and save to session
-                const fullText = SIMULATED_AI_PARAGRAPHS.join('\n\n');
+                // 缓存并保存到会话存储 - Cache and save to session
+                const fullText = paragraphSource.join('\n\n');
                 const cacheKey = `${AI_ANALYSIS_CACHE_KEY}_${totalProperties}_${totalViews}`;
                 try {
                     sessionStorage.setItem(cacheKey, fullText);
@@ -180,9 +244,10 @@ Property Market Analytics Data:
             return;
         }
 
-        const currentParagraph = SIMULATED_AI_PARAGRAPHS[currentParagraphIndex];
+        const currentParagraph = paragraphSource[currentParagraphIndex];
 
         if (currentCharIndex < currentParagraph.length) {
+            // 快速打字：每次15个字符，20毫秒间隔 = 约2秒完成
             // FAST: Type 15 characters at a time, 20ms interval = ~2 sec total
             const timeout = setTimeout(() => {
                 const nextCharIndex = Math.min(currentCharIndex + 15, currentParagraph.length);
@@ -196,7 +261,7 @@ Property Market Analytics Data:
 
             return () => clearTimeout(timeout);
         } else {
-            // Move to next paragraph quickly
+            // 快速移动到下一段 - Move to next paragraph quickly
             const timeout = setTimeout(() => {
                 setCurrentParagraphIndex(prev => prev + 1);
                 setCurrentCharIndex(0);
@@ -204,7 +269,7 @@ Property Market Analytics Data:
 
             return () => clearTimeout(timeout);
         }
-    }, [isTyping, currentParagraphIndex, currentCharIndex, totalProperties, totalViews]);
+    }, [isTyping, currentParagraphIndex, currentCharIndex, totalProperties, totalViews, aiGeneratedParagraphs]);
 
     // Auto-start generation when modal opens
     useEffect(() => {
@@ -228,11 +293,12 @@ Property Market Analytics Data:
         }
     };
 
+    // 打印/导出 - 打开新窗口显示可打印内容
     // Print/Export - open new window with printable content
     const handleExportPDF = async () => {
         setIsPrinting(true);
 
-        // Short loading delay
+        // 短暂加载延迟 - Short loading delay
         await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
@@ -243,7 +309,12 @@ Property Market Analytics Data:
                 return;
             }
 
-            const fullAnalysis = SIMULATED_AI_PARAGRAPHS.join('</p><p style="margin-top: 12px;">');
+            // 使用AI生成的段落（如果有）或默认模拟段落
+            // Use AI-generated paragraphs if available, otherwise use simulated paragraphs
+            const paragraphsToExport = aiGeneratedParagraphs.length > 0
+                ? aiGeneratedParagraphs
+                : SIMULATED_AI_PARAGRAPHS;
+            const fullAnalysis = paragraphsToExport.join('</p><p style="margin-top: 12px;">');
 
             const printContent = `
 <!DOCTYPE html>
@@ -535,26 +606,55 @@ Property Market Analytics Data:
                         </div>
                     </div>
 
+                    {/* AI分析区域 - 快速打字机效果 */}
                     {/* AI Analysis Section - Fast Typewriter */}
                     <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded-xl p-5">
-                        <h4 className="font-bold text-amber-900 flex items-center gap-2 mb-4">
-                            <span className="text-lg">🤖</span> AI Market Analysis
-                            {isGenerating && (
-                                <span className="ml-2 text-xs font-normal text-amber-600 animate-pulse">
-                                    Initializing...
-                                </span>
-                            )}
-                            {isTyping && !isGenerating && (
-                                <span className="ml-2 text-xs font-normal text-amber-600">
-                                    Generating...
-                                </span>
-                            )}
-                            {generationComplete && (
-                                <span className="ml-2 text-xs font-normal text-emerald-600">
-                                    ✓ Complete
-                                </span>
-                            )}
-                        </h4>
+                        <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-bold text-amber-900 flex items-center gap-2">
+                                <span className="text-lg">🤖</span> AI Market Analysis
+                                {isGenerating && (
+                                    <span className="ml-2 text-xs font-normal text-amber-600 animate-pulse">
+                                        {aiGeneratedParagraphs.length === 0 ? 'Calling AI...' : 'Initializing...'}
+                                    </span>
+                                )}
+                                {isTyping && !isGenerating && (
+                                    <span className="ml-2 text-xs font-normal text-amber-600">
+                                        Generating...
+                                    </span>
+                                )}
+                                {generationComplete && (
+                                    <span className="ml-2 text-xs font-normal text-emerald-600">
+                                        ✓ Complete
+                                    </span>
+                                )}
+                            </h4>
+                            {/* AI生成分析按钮 - Generate Analysis Button */}
+                            <button
+                                onClick={handleGenerateAiAnalysis}
+                                disabled={isGenerating || isTyping}
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                                title="调用DeepSeek AI生成新的分析报告"
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Generating...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>✨</span>
+                                        <span>Generate Analysis</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* AI错误提示 - AI Error Message */}
+                        {aiError && (
+                            <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm">
+                                ⚠️ {aiError}
+                            </div>
+                        )}
 
                         {isGenerating ? (
                             <div className="flex items-center gap-3 text-amber-700 py-4">

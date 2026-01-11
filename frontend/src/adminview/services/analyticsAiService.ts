@@ -166,11 +166,143 @@ export const loadAnalyticsChatHistory = (): AnalyticsChatMessage[] => {
 
 /**
  * Clear analytics chat history
+ * 清除分析聊天历史
  */
 export const clearAnalyticsChatHistory = (): void => {
     try {
         sessionStorage.removeItem(ANALYTICS_CHAT_KEY);
     } catch (err) {
         console.error('Error clearing analytics chat history:', err);
+    }
+};
+
+/**
+ * 图表数据接口 - 用于生成AI分析报告
+ * Chart data interface for generating AI analysis report
+ */
+export interface ChartDataForReport {
+    label: string;
+    value: number;
+}
+
+/**
+ * AI分析报告生成参数接口
+ * Parameters interface for AI analysis report generation
+ */
+export interface AnalyticsReportParams {
+    regionalData: ChartDataForReport[];    // 区域分布数据
+    priceData: ChartDataForReport[];       // 价格分布数据
+    amenitiesData: ChartDataForReport[];   // 设施数据
+    popularityData: ChartDataForReport[];  // 热门区域数据
+    popMetric: 'views' | 'applications';   // 热门指标类型
+    totalProperties: number;               // 总房产数量
+    totalViews: number;                    // 总浏览量
+    avgPrice: number;                      // 平均价格
+}
+
+/**
+ * 生成AI分析报告
+ * 调用DeepSeek API分析市场数据并生成专业报告
+ * Generate AI analysis report by calling DeepSeek API
+ */
+export const generateAiAnalysisReport = async (
+    params: AnalyticsReportParams
+): Promise<string[]> => {
+    // 检查AI服务是否已配置
+    if (!isAIConfigured()) {
+        throw new Error("AI service is not available. Please check your API key configuration.");
+    }
+
+    try {
+        // 构建分析上下文 - 将图表数据格式化为易于AI理解的文本
+        const regionalSummary = params.regionalData
+            .slice(0, 8)
+            .map(d => `${d.label}: ${d.value} properties`)
+            .join(', ');
+
+        const priceSummary = params.priceData
+            .map(d => `${d.label}: ${d.value} properties`)
+            .join(', ');
+
+        const amenitiesSummary = params.amenitiesData
+            .slice(0, 8)
+            .map(d => `${d.label}: ${d.value} properties`)
+            .join(', ');
+
+        const popularitySummary = params.popularityData
+            .slice(0, 6)
+            .map(d => `${d.label}: ${d.value} ${params.popMetric}`)
+            .join(', ');
+
+        // 构建AI提示词 - 指导AI生成专业的市场分析报告
+        const systemPrompt = `You are a professional real estate market analyst. Generate a comprehensive market analysis report based on the provided data.
+
+AREA KNOWLEDGE (for context):
+- IOI Resort City: Convenient for shopping, close to IOI City Mall with extensive retail options
+- IOI: Convenient for shopping, close to IOI City Mall
+- Kajang: Convenient transportation with MRT accessibility, well-connected to KL
+- Evo: Close to UKM university, ideal for students
+- Bangi: Close to UKM and other universities, popular student housing area
+- Savanna: Good ecological environment with green spaces
+- Southville City: Large development area with many new properties
+
+OUTPUT FORMAT:
+Return EXACTLY 4 paragraphs separated by ||PARA||
+- Paragraph 1: Regional distribution analysis (supply concentration, market hotspots)
+- Paragraph 2: Pricing analysis (price segment distribution, affordability)
+- Paragraph 3: Amenity preferences analysis (tenant expectations, popular features)
+- Paragraph 4: Recommendations for landlords and tenants
+
+Keep each paragraph 2-4 sentences. Be specific with data. Do not include any markdown formatting or bullet points.`;
+
+        const userPrompt = `Analyze this property market data:
+
+MARKET OVERVIEW:
+- Total Properties Listed: ${params.totalProperties}
+- Total Views: ${params.totalViews}
+- Average Monthly Rent: RM ${params.avgPrice}
+
+REGIONAL DISTRIBUTION:
+${regionalSummary}
+
+PRICE DISTRIBUTION:
+${priceSummary}
+
+TOP AMENITIES:
+${amenitiesSummary}
+
+DEMAND HEATMAP (by ${params.popMetric}):
+${popularitySummary}
+
+Generate a professional 4-paragraph market analysis report.`;
+
+        // 构建消息数组
+        const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ];
+
+        // 调用DeepSeek API生成分析报告
+        const response = await chatCompletion(messages, 2000);
+
+        if (!response) {
+            throw new Error('Empty response from AI service');
+        }
+
+        // 解析AI响应 - 按段落分隔符拆分
+        const paragraphs = response
+            .split('||PARA||')
+            .map(p => p.trim())
+            .filter(p => p.length > 0);
+
+        // 确保返回4个段落，不足则补充默认段落
+        while (paragraphs.length < 4) {
+            paragraphs.push('Analysis data insufficient for this section.');
+        }
+
+        return paragraphs.slice(0, 4);
+    } catch (error: any) {
+        console.error('Error generating AI analysis report:', error);
+        throw error;
     }
 };

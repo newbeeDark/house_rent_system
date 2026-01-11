@@ -122,8 +122,9 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
             if (!seg.isVisible) return null;
             const isHovered = hoveredIndex === i;
             const d = describeArcShape(center, center, innerRadius, seg.outerRadius, seg.startAngle, seg.endAngle);
-            const startP = polarToCartesian(center, center, seg.outerRadius + 4, seg.midAngle);
-            // Indicator line calculation
+            // 已隐藏圆形连接点，注释掉未使用的变量 - Commented out unused variable since circles are hidden
+            // const startP = polarToCartesian(center, center, seg.outerRadius + 4, seg.midAngle);
+            // Indicator line calculation - 指示线计算
             const lineStart = polarToCartesian(center, center, seg.outerRadius + 8, seg.midAngle);
             // We want the line to point to the left side where the text is displayed
             // The text is vertically centered in the left column.
@@ -138,10 +139,11 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
                   transform: isHovered ? 'scale(1.03)' : 'scale(1)',
                   filter: isHovered ? `drop-shadow(0 4px 6px ${seg.color}66)` : 'none'
                 }} />
-                <circle cx={startP.x} cy={startP.y} r="2.8" fill={seg.color} opacity={0.9} />
-                <circle cx={startP.x} cy={startP.y} r="1.2" fill="white" />
+                {/* 隐藏圆形连接点 - Hide circular connection points */}
+                {/* <circle cx={startP.x} cy={startP.y} r="2.8" fill={seg.color} opacity={0.9} /> */}
+                {/* <circle cx={startP.x} cy={startP.y} r="1.2" fill="white" /> */}
 
-                {/* Indicator Line (Only when hovered) */}
+                {/* Indicator Line (Only when hovered) - 悬停时显示指示线 */}
                 {isHovered && (
                   <>
                     <path d={`M ${lineStart.x},${lineStart.y} L ${lineEnd.x},${lineEnd.y}`}
@@ -151,6 +153,7 @@ export const NeoDonutChart: React.FC<NeoDonutChartProps> = ({ data }) => {
                     >
                       <animate attributeName="stroke-dashoffset" from="300" to="0" dur="0.4s" fill="freeze" />
                     </path>
+
                     <circle cx={lineStart.x} cy={lineStart.y} r="2" fill="black" />
                     <circle cx={lineEnd.x} cy={lineEnd.y} r="2" fill="black" />
                   </>
