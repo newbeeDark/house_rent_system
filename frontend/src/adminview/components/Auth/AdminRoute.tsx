@@ -14,10 +14,10 @@ import { useAuth } from '../../../context/AuthContext';
  * If admin -> Render the child routes
  */
 export const AdminRoute: React.FC = () => {
-    const { user, isAuthenticated, loading } = useAuth();
+    const { user, isAuthenticated, authReady } = useAuth();
 
-    // Show nothing while loading auth state
-    if (loading) {
+    // Show loading while auth state initializing
+    if (!authReady) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-100">
                 <div className="text-center">

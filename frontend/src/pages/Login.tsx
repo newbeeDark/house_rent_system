@@ -1,5 +1,3 @@
-console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
-console.log("Supabase Key:", import.meta.env.VITE_SUPABASE_ANON_KEY);
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
@@ -7,19 +5,24 @@ import { Logo } from '../components/Common/Logo';
 import { useAuth } from '../context/AuthContext';
 import { TermsModal } from '../components/Common/TermsModal';
 import { supabase } from '../lib/supabase';
-// No Layout used, matching login.html standalone design
-// But user asked to "refer to page design... keep animation".
-// login.html has a simplified navbar.
 
 export const Login: React.FC = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, authReady, isAuthenticated, authSubmitting } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(false);
     const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [localLoading, setLocalLoading] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
+
+    // 如果已登录，立即跳转到首页
+    // If already authenticated, redirect to home immediately
+    useEffect(() => {
+        if (authReady && isAuthenticated) {
+            navigate('/', { replace: true });
+        }
+    }, [authReady, isAuthenticated, navigate]);
 
     // 3D Tilt Logic
     const cardRef = useRef<HTMLDivElement>(null);
@@ -51,137 +54,102 @@ export const Login: React.FC = () => {
         };
     }, []);
 
-    // Handler 1: Intercept login and show terms modal
+    // 表单验证后显示条款弹窗
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setMsg(null);
 
         try {
-            // Validate inputs
-            if (!email) {
-                throw new Error('Please enter your email.');
-            }
-            if (!password) {
-                throw new Error('Please enter your password.');
-            }
-
-            // Show terms modal instead of logging in immediately
+            if (!email) throw new Error('Please enter your email.');
+            if (!password) throw new Error('Please enter your password.');
             setShowTerms(true);
-
         } catch (err: any) {
-            const errorMessage = err instanceof Error ? err.message : 'Validation failed.';
-            setMsg({ text: errorMessage, error: true });
+            setMsg({ text: err.message, error: true });
         }
     };
 
-    // Handler 2: Execute login AFTER terms accepted
+    // 同意条款后执行登录
     const handleTermsAgreed = async () => {
-        // Close modal first
         setShowTerms(false);
-        setLoading(true);
+        setLocalLoading(true);
 
         try {
-            // Step A: Authenticate with Supabase
-            await login({ email, password });
+            // 调用login - 返回 { session }
+            const { session } = await login({ email, password });
 
-            // Step B: Get the newly logged-in user
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Login succeeded but user not found');
-
-            // Step C: Update terms_accepted_at silently since they just agreed
-            const { error: updateError } = await supabase
-                .from('users')
-                .update({ terms_accepted_at: new Date().toISOString() })
-                .eq('id', user.id);
-
-            if (updateError) {
-                console.error('Failed to update terms acceptance:', updateError);
-                // Don't throw - login was successful, terms update is secondary
+            // 更新terms_accepted_at
+            if (session.user) {
+                await supabase
+                    .from('users')
+                    .update({ terms_accepted_at: new Date().toISOString() })
+                    .eq('id', session.user.id);
             }
 
-            // Step D: Check role and prepare redirect
+            // 检查角色决定跳转目标
             let targetPath = '/';
             const { data: profile } = await supabase
                 .from('users')
                 .select('role')
-                .eq('id', user.id)
+                .eq('id', session.user.id)
                 .maybeSingle();
-            
-            // Check both DB profile and metadata for robustness
-            const userRole = profile?.role || user.user_metadata?.role;
-            
-            if (userRole === 'admin') {
+
+            if (profile?.role === 'admin' || session.user.user_metadata?.role === 'admin') {
                 targetPath = '/admin/dashboard';
             }
 
-            // Step E: Success message and navigation
+            // 显示成功消息
             setMsg({ text: 'Signed in successfully — redirecting...', error: false });
 
+            // 动画后跳转
             if (cardRef.current) {
                 cardRef.current.style.animation = 'exitUp 500ms cubic-bezier(.2,.9,.2,1) both';
             }
 
             setTimeout(() => {
-                navigate(targetPath);
+                navigate(targetPath, { replace: true });
             }, 500);
 
         } catch (err: any) {
-            const errorMessage = err instanceof Error ? err.message : 'Login failed.';
-            setMsg({ text: errorMessage, error: true });
-            setLoading(false);
+            setMsg({ text: err.message || 'Login failed.', error: true });
+        } finally {
+            setLocalLoading(false);
         }
     };
 
-    // Handler 3: Close terms modal (user canceled)
     const handleTermsCancel = () => {
         setShowTerms(false);
     };
 
+    // 综合loading状态
+    const isLoading = localLoading || authSubmitting;
+
+    // 如果auth还在初始化，显示加载
+    if (!authReady) {
+        return (
+            <div className="auth-page-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+                <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '8px' }}>Loading...</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="auth-page-bg">
             <main className="auth-card" ref={cardRef} role="main" aria-labelledby="page-title">
                 <div className="accent-ring" aria-hidden="true" style={{ position: 'absolute', inset: 'auto -10px -10px auto', width: 96, height: 96, borderRadius: 28, background: 'radial-gradient(circle at 30% 30%, rgba(30,136,255,0.09), transparent 42%)', mixBlendMode: 'screen', pointerEvents: 'none' }}></div>
 
-
-
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '14px',
-                        marginBottom: '28px',
-                        animation: 'logoIn 420ms cubic-bezier(.2,.9,.2,1) both',
-                        animationDelay: '120ms'
-                    }}
-                >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '28px', animation: 'logoIn 420ms cubic-bezier(.2,.9,.2,1) both', animationDelay: '120ms' }}>
                     <Logo />
-
                     <div>
-                        <div
-                            id="page-title"
-                            style={{
-                                fontWeight: 800,
-                                fontSize: '18px',
-                                lineHeight: '1.2',
-                                color: 'var(--text)'
-                            }}
-                        >
+                        <div id="page-title" style={{ fontWeight: 800, fontSize: '18px', lineHeight: '1.2', color: 'var(--text)' }}>
                             UKM Students off School Rented System
                         </div>
-
-                        <div
-                            style={{
-                                fontSize: '13px',
-                                color: 'var(--muted-dark)',
-                                marginTop: '2px'
-                            }}
-                        >
+                        <div style={{ fontSize: '13px', color: 'var(--muted-dark)', marginTop: '2px' }}>
                             Sign in to find & manage off-campus housing
                         </div>
                     </div>
                 </div>
-
 
                 <form onSubmit={handleSubmit} noValidate>
                     <div className="auth-field" style={{ animation: 'fieldIn 420ms cubic-bezier(.2,.9,.2,1) both', animationDelay: '120ms' }}>
@@ -211,9 +179,9 @@ export const Login: React.FC = () => {
                         type="submit"
                         className="btn btn-primary"
                         style={{ width: '100%', padding: '14px', fontSize: '16px', fontWeight: 600, animation: 'btnIn 420ms cubic-bezier(.2,.9,.2,1) both', animationDelay: '480ms' }}
-                        disabled={loading}
+                        disabled={isLoading}
                     >
-                        {loading ? 'Signing in...' : 'Sign In'}
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                     </button>
 
                     {msg && (
@@ -232,7 +200,6 @@ export const Login: React.FC = () => {
                 </form>
             </main>
 
-            {/* Terms Modal - shown before login */}
             {showTerms && (
                 <TermsModal
                     mode="embedded"

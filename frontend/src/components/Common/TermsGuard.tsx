@@ -2,10 +2,10 @@ import { useAuth } from '../../context/AuthContext';
 import { TermsModal } from './TermsModal';
 
 export default function TermsGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, authReady } = useAuth();
 
   // While loading auth state, render children normally (avoid flash)
-  if (loading) {
+  if (!authReady) {
     return <>{children}</>;
   }
 

@@ -1,16 +1,28 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Role } from '../types';
+import type { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clearChatHistory } from '../components/AIFunction/aiService';
 
+/**
+ * AuthContext 类型定义
+ * 3个独立的loading状态，防止互相阻塞
+ */
 interface AuthContextType {
+    // 3个独立的loading状态 - 3 separate loading states
+    authInitializing: boolean;  // 应用启动时读取session
+    authSubmitting: boolean;    // signIn/signUp/signOut 网络操作
+    profileLoading: boolean;    // 从数据库拉取profile
+
+    // 稳定值 - Stable values
+    session: Session | null;
     user: User | null;
-    isAuthenticated: boolean;
-    loading: boolean;
-    error: string | null;
-    refreshProfile: () => Promise<void>;
-    login: (params: { email: string; password: string }) => Promise<void>;
+    isAuthenticated: boolean;   // !!session?.user - 仅由session决定
+    authReady: boolean;         // !authInitializing - 初始化完成标志
+
+    // 方法 - Methods
+    login: (params: { email: string; password: string }) => Promise<{ session: Session }>;
     register: (params: {
         email: string;
         password: string;
@@ -21,190 +33,252 @@ interface AuthContextType {
         agency_name?: string;
         agency_license?: string;
         landlord_licenceID?: string;
-    }) => Promise<void>;
+    }) => Promise<{ user: AuthUser; session: Session | null }>;
     logout: () => Promise<void>;
+    refreshProfile: () => Promise<void>;
+    error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    // ========================
+    // 状态定义 - State definitions
+    // ========================
+
+    // Session状态 - 仅由session决定登录状态
+    const [session, setSession] = useState<Session | null>(null);
+
+    // Profile状态 - 可以失败但不影响登录
     const [user, setUser] = useState<User | null>(() => {
-        // 从localStorage初始化用户状态（如果可用）
-        // Initialize from localStorage if available
         const cached = localStorage.getItem('house_rent_user_profile');
         return cached ? JSON.parse(cached) : null;
     });
-    const [loading, setLoading] = useState(!user);
+
+    // 3个独立的loading状态
+    const [authInitializing, setAuthInitializing] = useState(true);  // 初始为true
+    const [authSubmitting, setAuthSubmitting] = useState(false);
+    const [profileLoading, setProfileLoading] = useState(false);
+
     const [error, setError] = useState<string | null>(null);
 
-    // 防抖引用 - 防止标签页切换时快速状态变化
-    // Debounce ref - prevents rapid state changes on tab switch
-    const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
-    // 是否正在获取profile的标志
-    // Flag to indicate if profile fetch is in progress
-    const isFetchingRef = useRef<boolean>(false);
+    // 派生状态 - Derived states
+    const isAuthenticated = !!session?.user;
+    const authReady = !authInitializing;
 
-    const setUserWithCache = (u: User | null) => {
+    // 防抖和去重引用
+    const fetchRequestIdRef = useRef<number>(0);
+    const initCompletedRef = useRef(false);
+
+    // ========================
+    // Profile缓存 - Profile cache helper
+    // ========================
+    const setUserWithCache = useCallback((u: User | null) => {
         setUser(u);
         if (u) {
             localStorage.setItem('house_rent_user_profile', JSON.stringify(u));
         } else {
             localStorage.removeItem('house_rent_user_profile');
         }
-    };
+    }, []);
 
-    const fetchProfile = async (uid: string): Promise<User | null> => {
+    // ========================
+    // Profile获取 - Profile fetch (不影响session/auth状态)
+    // ========================
+    const fetchProfile = useCallback(async (uid: string): Promise<User | null> => {
+        // 重试3次
         for (let i = 0; i < 3; i++) {
-            const u = await supabase.from('users').select('role,full_name,avatar_url,terms_accepted_at').eq('id', uid).maybeSingle();
-            if (!u.error && u.data) {
-                const email = (await supabase.auth.getUser()).data.user?.email || '';
-                return { id: uid, name: u.data.full_name || '', email, role: (u.data.role || 'guest') as Role, terms_accepted_at: u.data.terms_accepted_at ?? null };
-            }
-            const p = await supabase.from('profiles').select('role,full_name,avatar_url').eq('id', uid).maybeSingle();
-            if (!p.error && p.data) {
-                const email = (await supabase.auth.getUser()).data.user?.email || '';
-                return { id: uid, name: p.data.full_name || '', email, role: (p.data.role || 'guest') as Role, terms_accepted_at: null };
+            try {
+                const u = await supabase.from('users').select('role,full_name,avatar_url,terms_accepted_at').eq('id', uid).maybeSingle();
+                if (!u.error && u.data) {
+                    const emailResult = await supabase.auth.getUser();
+                    const email = emailResult.data.user?.email || '';
+                    return {
+                        id: uid,
+                        name: u.data.full_name || '',
+                        email,
+                        role: (u.data.role || 'guest') as Role,
+                        terms_accepted_at: u.data.terms_accepted_at ?? null
+                    };
+                }
+                // 回退到profiles表
+                const p = await supabase.from('profiles').select('role,full_name,avatar_url').eq('id', uid).maybeSingle();
+                if (!p.error && p.data) {
+                    const emailResult = await supabase.auth.getUser();
+                    const email = emailResult.data.user?.email || '';
+                    return {
+                        id: uid,
+                        name: p.data.full_name || '',
+                        email,
+                        role: (p.data.role || 'guest') as Role,
+                        terms_accepted_at: null
+                    };
+                }
+            } catch (err) {
+                console.warn('AuthContext: Profile fetch attempt failed', i, err);
             }
             await new Promise(r => setTimeout(r, 500));
         }
         return null;
-    };
+    }, []);
 
     /**
-     * 安全的profile获取函数（带防抖）
-     * Safe profile fetch with debounce to prevent race conditions
-     * 如果profile获取失败，不会清除现有用户状态
-     * If profile fetch fails, existing user state is NOT cleared
+     * 安全的profile获取 - 带去重机制
+     * 失败时不会清除session，不会影响登录状态
      */
-    const safeFetchProfile = useCallback(async (uid: string, forceUpdate: boolean = false) => {
-        // 如果已经在获取中，跳过
-        // Skip if already fetching
-        if (isFetchingRef.current && !forceUpdate) {
-            console.log('AuthContext: Skipping fetch, already in progress');
-            return;
-        }
+    const safeFetchProfile = useCallback(async (uid: string) => {
+        const requestId = ++fetchRequestIdRef.current;
 
-        isFetchingRef.current = true;
+        setProfileLoading(true);
         try {
             const profile = await fetchProfile(uid);
+
+            // 检查是否是最新请求（去重）
+            if (requestId !== fetchRequestIdRef.current) {
+                console.log('AuthContext: Ignoring stale profile fetch', requestId);
+                return;
+            }
+
             if (profile) {
                 setUserWithCache(profile);
             } else {
-                // profile获取失败时，不清除现有用户状态（除非明确登出）
-                // Don't clear existing user on fetch failure (unless explicit sign out)
-                console.warn('AuthContext: Profile fetch returned null, keeping existing user state');
+                // Profile获取失败 - 不清除session，不影响登录
+                console.warn('AuthContext: Profile fetch failed, keeping session');
             }
         } catch (err) {
             console.error('AuthContext: Profile fetch error', err);
-            // 错误时也不清除用户状态
-            // Don't clear user on error either
+            // 错误时也不清除session
         } finally {
-            isFetchingRef.current = false;
-        }
-    }, []);
-
-    const refreshProfile = async () => {
-        const { data } = await supabase.auth.getUser();
-        const uid = data.user?.id;
-        if (!uid) return;
-        await safeFetchProfile(uid, true);
-    };
-
-    useEffect(() => {
-        // 初始会话检查 - Initial session check
-        supabase.auth.getSession().then(async ({ data }) => {
-            const s = data.session;
-            if (s?.user?.id) {
-                // 如果有缓存用户且ID匹配，使用缓存并在后台刷新
-                // If we have cached user and ID matches, use cache and refresh in background
-                if (!user || user.id !== s.user.id) {
-                    await safeFetchProfile(s.user.id, true);
-                } else {
-                    // 后台静默刷新 - Background silent refresh
-                    safeFetchProfile(s.user.id, false);
-                }
-            } else {
-                setUserWithCache(null);
+            if (requestId === fetchRequestIdRef.current) {
+                setProfileLoading(false);
             }
-            setLoading(false);
-        });
+        }
+    }, [fetchProfile, setUserWithCache]);
 
-        /**
-         * 认证状态变化监听器（带防抖和事件过滤）
-         * Auth state change listener with debounce and event filtering
-         * 
-         * 关键修复：
-         * 1. 只在 SIGNED_IN 和 SIGNED_OUT 事件时更新用户状态
-         * 2. TOKEN_REFRESHED 事件使用防抖，不立即刷新
-         * 3. 防止标签页切换触发的快速状态变化
-         */
-        const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const refreshProfile = useCallback(async () => {
+        if (session?.user?.id) {
+            await safeFetchProfile(session.user.id);
+        }
+    }, [session, safeFetchProfile]);
+
+    // ========================
+    // 初始化 - One-time session initialization
+    // ========================
+    useEffect(() => {
+        // 防止重复初始化
+        if (initCompletedRef.current) return;
+        initCompletedRef.current = true;
+
+        const initSession = async () => {
+            try {
+                const { data, error: sessionError } = await supabase.auth.getSession();
+
+                if (sessionError) {
+                    console.error('AuthContext: getSession error', sessionError);
+                    setSession(null);
+                    return;
+                }
+
+                const s = data.session;
+                setSession(s);
+
+                if (s?.user?.id) {
+                    // 有session，后台获取profile（不阻塞authReady）
+                    safeFetchProfile(s.user.id);
+                } else {
+                    // 无session，清除缓存的profile
+                    setUserWithCache(null);
+                }
+            } catch (err) {
+                console.error('AuthContext: Init error', err);
+                setSession(null);
+            } finally {
+                // 无论成功失败，都结束初始化
+                setAuthInitializing(false);
+            }
+        };
+
+        initSession();
+    }, [safeFetchProfile, setUserWithCache]);
+
+    // ========================
+    // onAuthStateChange - 带去重
+    // ========================
+    useEffect(() => {
+        const { data: sub } = supabase.auth.onAuthStateChange(async (event, newSession) => {
             console.log('AuthContext: Auth state change', event);
 
-            // 只处理关键事件 - Only handle critical events
             if (event === 'SIGNED_OUT') {
-                // 明确登出，清除用户状态
-                // Explicit sign out, clear user state
+                setSession(null);
                 setUserWithCache(null);
-                setLoading(false);
                 return;
             }
 
-            if (event === 'SIGNED_IN') {
-                // 新登录，立即获取profile
-                // New sign in, fetch profile immediately
-                if (session?.user?.id) {
-                    await safeFetchProfile(session.user.id, true);
+            if (event === 'SIGNED_IN' && newSession) {
+                setSession(newSession);
+                if (newSession.user?.id) {
+                    safeFetchProfile(newSession.user.id);
                 }
-                setLoading(false);
                 return;
             }
 
-            // TOKEN_REFRESHED 和其他事件使用防抖
-            // TOKEN_REFRESHED and other events use debounce
-            if (event === 'TOKEN_REFRESHED' && session?.user?.id) {
-                // 清除之前的防抖计时器
-                if (fetchDebounceRef.current) {
-                    clearTimeout(fetchDebounceRef.current);
+            if (event === 'TOKEN_REFRESHED' && newSession) {
+                // 只更新session，不触发profile fetch
+                setSession(newSession);
+                return;
+            }
+
+            if (event === 'USER_UPDATED' && newSession) {
+                setSession(newSession);
+                if (newSession.user?.id) {
+                    safeFetchProfile(newSession.user.id);
                 }
-                // 延迟1秒后刷新，防止快速切换
-                // Delay 1 second before refresh to prevent rapid switching
-                fetchDebounceRef.current = setTimeout(() => {
-                    safeFetchProfile(session.user.id, false);
-                }, 1000);
                 return;
             }
-
-            // INITIAL_SESSION 事件不需要处理，因为已经在上面的 getSession 中处理了
-            // INITIAL_SESSION doesn't need handling, already handled in getSession above
         });
 
         return () => {
             sub.subscription.unsubscribe();
-            // 清理防抖计时器
-            if (fetchDebounceRef.current) {
-                clearTimeout(fetchDebounceRef.current);
-            }
         };
+    }, [safeFetchProfile, setUserWithCache]);
+
+    // ========================
+    // login - 返回 { session }
+    // ========================
+    const login = useCallback(async ({ email, password }: { email: string; password: string }): Promise<{ session: Session }> => {
+        setAuthSubmitting(true);
+        setError(null);
+
+        try {
+            const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (err) {
+                const text = /invalid/i.test(err.message)
+                    ? 'Invalid login credentials.'
+                    : /email/i.test(err.message) && /confirm/i.test(err.message)
+                        ? 'Please confirm your email before signing in.'
+                        : err.message || 'Login failed.';
+                setError(text);
+                throw new Error(text);
+            }
+
+            if (!data.session) {
+                const text = 'Login succeeded but no session returned.';
+                setError(text);
+                throw new Error(text);
+            }
+
+            // 成功 - session会通过onAuthStateChange自动更新
+            return { session: data.session };
+        } finally {
+            setAuthSubmitting(false);
+        }
     }, []);
 
-    const login = async ({ email, password }: { email: string; password: string }) => {
-        setLoading(true);
-        setError(null);
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-        if (err) {
-            const text =
-                /invalid/i.test(err.message) ? 'Invalid login credentials.' :
-                    /email/i.test(err.message) && /confirm/i.test(err.message) ? 'Please confirm your email before signing in.' :
-                        err.message || 'Login failed.';
-            setError(text);
-            setLoading(false);
-            throw new Error(text);
-        }
-        setLoading(false);
-    };
-
-    const register = async ({
+    // ========================
+    // register - 注册后强制登出，不自动登录
+    // ========================
+    const register = useCallback(async ({
         email,
         password,
         full_name,
@@ -224,107 +298,106 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         agency_name?: string;
         agency_license?: string;
         landlord_licenceID?: string;
-    }) => {
-        setLoading(true);
+    }): Promise<{ user: AuthUser; session: Session | null }> => {
+        setAuthSubmitting(true);
         setError(null);
-        const metadata: Record<string, any> = {
-            full_name,
-            role,
-        };
-        if (phone) metadata.phone = phone;
-        if (student_id) metadata.student_id = student_id;
-        if (agency_name) metadata.agency_name = agency_name;
-        if (agency_license) metadata.agency_license = agency_license;
-        if (landlord_licenceID) metadata.landlord_licenceID = landlord_licenceID;
-
-        const { data, error: err } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: metadata,
-            },
-        });
-        if (err) {
-            const text =
-                /registered|exists/i.test(err.message) ? 'Email already registered.' :
-                    /password|weak/i.test(err.message) ? 'Password is too weak.' :
-                        err.message || 'Registration failed.';
-            setError(text);
-            setLoading(false);
-            throw new Error(text);
-        }
-        setLoading(false);
-        if (!data.session) {
-            return;
-        }
-    };
-
-    /**
-     * Logout Method
-     * 
-     * Complete logout process with multiple cleanup steps:
-     * 
-     * Step 1: Clear AI History
-     * - Removes all stored AI chat conversations
-     * - Clears localStorage key: 'ai_chat_history'
-     * 
-     * Step 2: Clear Authentication Data
-     * - Removes all auth-related localStorage items
-     * - Clears session tokens and user data
-     * 
-     * Step 3: Sign Out from Supabase
-     * - Calls supabase.auth.signOut() with timeout protection
-     * - Timeout: 5 seconds (prevents hanging on slow networks)
-     * - Continues even if network request fails
-     * 
-     * Step 4: Redirect to Login
-     * - Uses window.location.href for hard redirect
-     * - Ensures all React state is completely cleared
-     * - Forces fresh page load at /login
-     * 
-     * Error Handling:
-     * - Logs errors but doesn't block logout
-     * - User always gets logged out even if API fails
-     * - Timeout ensures no infinite waiting
-     */
-    const logout = async () => {
-        // IMMEDIATE REDIRECT - No delay for user
-        // Store cleanup flag to run after redirect
-        const needsCleanup = true;
 
         try {
-            // Step 1: Clear all local data SYNCHRONOUSLY (instant)
+            const metadata: Record<string, any> = { full_name, role };
+            if (phone) metadata.phone = phone;
+            if (student_id) metadata.student_id = student_id;
+            if (agency_name) metadata.agency_name = agency_name;
+            if (agency_license) metadata.agency_license = agency_license;
+            if (landlord_licenceID) metadata.landlord_licenceID = landlord_licenceID;
+
+            const { data, error: err } = await supabase.auth.signUp({
+                email,
+                password,
+                options: { data: metadata },
+            });
+
+            if (err) {
+                const text = /registered|exists/i.test(err.message)
+                    ? 'Email already registered.'
+                    : /password|weak/i.test(err.message)
+                        ? 'Password is too weak.'
+                        : err.message || 'Registration failed.';
+                setError(text);
+                throw new Error(text);
+            }
+
+            if (!data.user) {
+                const text = 'Registration failed - no user returned.';
+                setError(text);
+                throw new Error(text);
+            }
+
+            // 注册成功后强制登出并清除所有缓存
+            // Force sign out and clear all cache after successful registration
+            console.log('AuthContext: Register success, forcing sign out and clearing cache');
+
+            // 清除Supabase session
+            await supabase.auth.signOut();
+
+            // 清除所有本地缓存
+            localStorage.removeItem('house_rent_user_profile');
+            localStorage.removeItem('supabase.auth.token');
+            localStorage.removeItem('user_data');
+            sessionStorage.clear();
+
+            // 清除状态
+            setSession(null);
+            setUserWithCache(null);
+
+            return { user: data.user, session: null };
+        } finally {
+            setAuthSubmitting(false);
+        }
+    }, [setUserWithCache]);
+
+    // ========================
+    // logout
+    // ========================
+    const logout = useCallback(async () => {
+        try {
             clearChatHistory();
             localStorage.removeItem('house_rent_user_profile');
             localStorage.removeItem('supabase.auth.token');
             localStorage.removeItem('user_data');
             sessionStorage.clear();
 
-            // Step 2: Clear React state (instant)
+            setSession(null);
             setUserWithCache(null);
 
-            // Step 3: IMMEDIATE HARD REDIRECT (no waiting!)
             window.location.href = '/login';
 
-            // Step 4: Background cleanup (happens after redirect)
-            // This won't block the redirect since location.href is synchronous navigation
-            if (needsCleanup) {
-                // Attempt Supabase sign out in background
-                // This will complete after page navigation starts
-                supabase.auth.signOut().catch(err => {
-                    // Silent fail - user already logged out locally
-                    console.error('Background sign out error:', err);
-                });
-            }
+            supabase.auth.signOut().catch(err => {
+                console.error('Background sign out error:', err);
+            });
         } catch (error) {
             console.error('Logout error:', error);
-            // Force redirect even on error
             window.location.href = '/login';
         }
-    };
+    }, [setUserWithCache]);
 
+    // ========================
+    // Provider
+    // ========================
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, error, refreshProfile, login, register, logout }}>
+        <AuthContext.Provider value={{
+            authInitializing,
+            authSubmitting,
+            profileLoading,
+            session,
+            user,
+            isAuthenticated,
+            authReady,
+            login,
+            register,
+            logout,
+            refreshProfile,
+            error
+        }}>
             {children}
         </AuthContext.Provider>
     );

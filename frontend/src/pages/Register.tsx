@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
-// No layout, using specific auth page design as per register.html
 
 type Role = 'student' | 'landlord' | 'agent';
 
-// Mock File Upload Component
+// File Upload Component
 const FileUpload: React.FC<{ label: string; hint: string; accept: string }> = ({ label, hint, accept }) => {
     const [fileName, setFileName] = useState<string | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
@@ -45,7 +44,7 @@ const FileUpload: React.FC<{ label: string; hint: string; accept: string }> = ({
 
 export const Register: React.FC = () => {
     const navigate = useNavigate();
-    const { register } = useAuth();
+    const { register, authReady, authSubmitting } = useAuth();
     const [role, setRole] = useState<Role>('student');
     const [formData, setFormData] = useState({
         fullName: '',
@@ -61,7 +60,12 @@ export const Register: React.FC = () => {
     });
     const [tos, setTos] = useState(false);
     const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [localLoading, setLocalLoading] = useState(false);
+
+    // 注册页面不需要自动跳转到首页
+    // 因为注册成功后会强制登出并跳转到登录页
+    // Register page does NOT auto-redirect to home
+    // After successful register, we force signOut and navigate to login
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -71,6 +75,7 @@ export const Register: React.FC = () => {
         e.preventDefault();
         setMsg(null);
 
+        // 表单验证
         if (!formData.fullName) return setMsg({ text: 'Please enter your full name.', error: true });
         if (!formData.email || !formData.email.includes('@')) return setMsg({ text: 'Please enter a valid email.', error: true });
         if (formData.password.length < 6) return setMsg({ text: 'Password must be at least 6 characters.', error: true });
@@ -80,7 +85,7 @@ export const Register: React.FC = () => {
         if (role === 'student' && formData.matric.length < 2) return setMsg({ text: 'Students: please provide your Matric No.', error: true });
         if (role === 'agent' && formData.agencyName.length < 2) return setMsg({ text: 'Agents: please provide Agency Name.', error: true });
 
-        setLoading(true);
+        setLocalLoading(true);
         try {
             const payload = {
                 email: formData.email,
@@ -93,17 +98,34 @@ export const Register: React.FC = () => {
                 agency_license: role === 'agent' ? formData.agencyLicense : undefined,
                 landlord_licenceID: role === 'landlord' ? formData.businessReg : undefined,
             };
+
+            // 调用register - 注册后不会自动登录
             await register(payload);
-            setMsg({ text: 'Registration successful. Redirecting to login...', error: false });
-            setLoading(false);
-            setTimeout(() => navigate('/login'), 2000);
+
+            // 注册成功 - 显示带倒计时的成功提示
+            // Registration success - show countdown toast
+            let countdown = 3;
+            setMsg({ text: `✅ Registration successful! Redirecting to login in ${countdown}s...`, error: false });
+
+            // 倒计时动画 - Countdown animation
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    setMsg({ text: `✅ Registration successful! Redirecting to login in ${countdown}s...`, error: false });
+                } else {
+                    clearInterval(countdownInterval);
+                    navigate('/login', { replace: true });
+                }
+            }, 1000);
+
         } catch (err: any) {
             setMsg({ text: err?.message || 'Registration failed.', error: true });
-            setLoading(false);
+        } finally {
+            setLocalLoading(false);
         }
     };
 
-    // Calculate password strength simple
+    // Password strength
     const getStrength = () => {
         let s = 0;
         if (formData.password.length >= 6) s++;
@@ -114,8 +136,85 @@ export const Register: React.FC = () => {
     };
     const strength = getStrength();
 
+    // 综合loading状态
+    const isLoading = localLoading || authSubmitting;
+
+    // 如果auth还在初始化，显示加载
+    if (!authReady) {
+        return (
+            <div className="auth-page-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+                <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '8px' }}>Loading...</div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="auth-page-bg">
+            {/* Toast通知 - 固定在顶部 */}
+            {msg && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: '20px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 99999,
+                        padding: '16px 28px',
+                        borderRadius: '14px',
+                        fontSize: '15px',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        boxShadow: msg.error
+                            ? '0 10px 40px rgba(239, 68, 68, 0.4)'
+                            : '0 10px 40px rgba(16, 185, 129, 0.4)',
+                        background: msg.error
+                            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                            : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: 'white',
+                        animation: 'toastSlide 0.4s ease-out'
+                    }}
+                >
+                    <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.25)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        {msg.error ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        )}
+                    </div>
+                    <span>{msg.text}</span>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes toastSlide {
+                    0% {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(-30px) scale(0.9);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0) scale(1);
+                    }
+                }
+            `}</style>
+
             <div className="bg-blob blob-a" aria-hidden="true"></div>
             <div className="bg-blob blob-b" aria-hidden="true"></div>
 
@@ -201,7 +300,6 @@ export const Register: React.FC = () => {
                         <input id="confirm" name="confirm" type="password" placeholder="重复输入密码" value={formData.confirm} onChange={handleChange} required />
                     </div>
 
-                    {/* Uploads */}
                     <div className="auth-field" style={{ gridColumn: '1 / -1' }}>
                         <label>Uploads (per role)</label>
                         {role === 'student' && (
@@ -224,21 +322,14 @@ export const Register: React.FC = () => {
                     </div>
 
                     <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={loading}>
-                            {loading ? 'Creating...' : 'Create account'}
+                        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={isLoading}>
+                            {isLoading ? 'Creating...' : 'Create account'}
                         </button>
                     </div>
-
-                    {msg && (
-                        <div style={{ gridColumn: '1 / -1', padding: '10px', borderRadius: '10px', fontSize: '13px', marginTop: '6px', background: msg.error ? 'rgba(255,107,107,0.12)' : 'rgba(32,201,151,0.08)', color: msg.error ? 'var(--danger)' : 'var(--success)', animation: 'pop 220ms ease both' }}>
-                            {msg.text}
-                        </div>
-                    )}
 
                     <div style={{ gridColumn: '1 / -1', textAlign: 'center', fontSize: '13px', color: 'var(--muted)', marginTop: '6px' }}>
                         Already have an account? <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 700 }}>Sign in</Link>
                     </div>
-
                 </form>
             </main>
         </div>
