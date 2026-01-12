@@ -27,7 +27,7 @@ export const CreateListing: React.FC = () => {
         if (!user || user.role === 'student') {
             const timer = setTimeout(() => {
                 navigate('/');
-            }, 3000);
+            }, 2000);
 
             // 清理定时器，避免内存泄漏
             return () => clearTimeout(timer);

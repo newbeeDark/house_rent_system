@@ -39,6 +39,62 @@ export const HomePage: React.FC = () => {
 
     const AMENITIES = ["Wi-Fi", "Parking", "AirCon", "Pool", "Gym", "Security", "Washing machine", "Hot water"];
 
+    // 位置模式状态：'idle' | 'requesting' | 'user' | 'ukm'
+    // Location mode: 'idle' (not set), 'requesting' (getting location), 'user' (got user location), 'ukm' (using UKM default)
+    const [locationMode, setLocationMode] = useState<'idle' | 'requesting' | 'user' | 'ukm'>('idle');
+
+    // UKM Bangi 默认坐标
+    const UKM_LOCATION = { lat: 2.9254, lon: 101.7749 };
+
+    // 定位按钮点击处理
+    // Location button click handler
+    const handleLocationClick = () => {
+        if (locationMode === 'idle') {
+            // 第一次点击：请求地理位置
+            // First click: request geolocation
+            setLocationMode('requesting');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        setUserLocation({
+                            lat: position.coords.latitude,
+                            lon: position.coords.longitude
+                        });
+                        setLocationMode('user');
+                        console.log('HomePage: Got user location', position.coords.latitude, position.coords.longitude);
+                    },
+                    (error) => {
+                        console.warn('HomePage: Geolocation failed, using UKM location', error);
+                        setUserLocation(UKM_LOCATION);
+                        setLocationMode('ukm');
+                    },
+                    { timeout: 5000, maximumAge: 300000 }
+                );
+            } else {
+                setUserLocation(UKM_LOCATION);
+                setLocationMode('ukm');
+            }
+        } else if (locationMode === 'user' || locationMode === 'requesting') {
+            // 第二次点击（或请求中点击）：切换到UKM位置
+            // Second click: switch to UKM location
+            setUserLocation(UKM_LOCATION);
+            setLocationMode('ukm');
+        } else {
+            // 第三次点击：重置
+            // Third click: reset
+            setUserLocation(null);
+            setLocationMode('idle');
+        }
+    };
+
+    // 获取按钮文字
+    const getLocationButtonText = () => {
+        if (locationMode === 'requesting') return '📍 Locating...';
+        if (locationMode === 'user') return '📍 My Location';
+        if (locationMode === 'ukm') return '📍 My Location';
+        return '📍 Locate';
+    };
+
     useEffect(() => {
         if (loading) return;
         let filtered = [...baseProperties];
@@ -203,16 +259,12 @@ export const HomePage: React.FC = () => {
                                 <option value="high">&gt; RM 1000</option>
                             </select>
                             <button
-                                onClick={() => {
-                                    // Use UKM FTSM hardcoded coordinates
-                                    setUserLocation({
-                                        lat: 2.9181117799036436,
-                                        lon: 101.7708772058733
-                                    });
-                                }}
+                                onClick={handleLocationClick}
                                 className="btn btn-ghost"
+                                disabled={locationMode === 'requesting'}
+                                style={{ opacity: locationMode === 'requesting' ? 0.6 : 1 }}
                             >
-                                📍 {userLocation ? 'On' : 'Locate'}
+                                {getLocationButtonText()}
                             </button>
                         </div>
                     ) : (
@@ -329,7 +381,7 @@ export const HomePage: React.FC = () => {
                         marker={userLocation !== null}
                         popupText={userLocation ? "Your Location" : "Bangi Gateway"}
                     />
-                    <NearbyList properties={sortedProperties} userLocation={userLocation} disableSorting={!!userLocation} />
+                    <NearbyList properties={sortedProperties} userLocation={userLocation} />
                 </aside>
             </main>
             <style>{`

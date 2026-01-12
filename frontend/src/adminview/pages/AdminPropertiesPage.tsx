@@ -44,6 +44,8 @@ interface AdminPropertyFormData {
   furnished: string;
   available_from: string;
   amenities: string[];
+  latitude: number;  // 纬度
+  longitude: number; // 经度
 }
 
 // Session cache key for property images
@@ -97,8 +99,14 @@ export const PropertiesView = () => {
     status: 'active',
     furnished: 'none',
     available_from: '',
-    amenities: []
+    amenities: [],
+    latitude: 0,
+    longitude: 0
   });
+
+  // Pagination state (10 items per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const getStatusStyle = (status: string): string => {
     switch (status) {
@@ -168,7 +176,9 @@ export const PropertiesView = () => {
                     available_from,
                     status,
                     owner_id,
-                    created_at
+                    created_at,
+                    latitude,
+                    longitude
                 `)
         .order('created_at', { ascending: false });
 
@@ -287,7 +297,9 @@ export const PropertiesView = () => {
       status: property.status || 'active',
       furnished: property.furnished || 'none',
       available_from: property.available_from || '',
-      amenities: property.amenities || []
+      amenities: property.amenities || [],
+      latitude: (property as any).latitude || 0,
+      longitude: (property as any).longitude || 0
     });
     // Load existing images for editing
     setEditingImages(imageCache[property.id] || []);
@@ -434,6 +446,8 @@ export const PropertiesView = () => {
           furnished: formData.furnished,
           available_from: formData.available_from || null,
           amenities: formData.amenities.length > 0 ? formData.amenities : null,
+          latitude: formData.latitude || null,
+          longitude: formData.longitude || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingProperty.id);
@@ -517,7 +531,9 @@ export const PropertiesView = () => {
       status: 'active',
       furnished: 'none',
       available_from: '',
-      amenities: []
+      amenities: [],
+      latitude: 0,
+      longitude: 0
     });
     setNewImageFiles([]);
     setNewImagePreviews([]);
@@ -571,7 +587,9 @@ export const PropertiesView = () => {
           status: formData.status,
           furnished: formData.furnished,
           available_from: formData.available_from || null,
-          amenities: formData.amenities.length > 0 ? formData.amenities : null
+          amenities: formData.amenities.length > 0 ? formData.amenities : null,
+          latitude: formData.latitude || null,
+          longitude: formData.longitude || null
         })
         .select()
         .single();
@@ -623,6 +641,18 @@ export const PropertiesView = () => {
     }
     return true;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredProperties.length / ITEMS_PER_PAGE);
+  const paginatedProperties = filteredProperties.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
 
   // Render image management section
   const renderImageManagement = () => (
@@ -883,6 +913,32 @@ export const PropertiesView = () => {
         />
       </div>
 
+      {/* Latitude & Longitude Row - 用于地图距离计算 */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Latitude (纬度)</label>
+          <input
+            type="number"
+            step="0.000001"
+            value={formData.latitude || ''}
+            onChange={(e) => setFormData({ ...formData, latitude: Number(e.target.value) })}
+            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            placeholder="e.g. 2.9254"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Longitude (经度)</label>
+          <input
+            type="number"
+            step="0.000001"
+            value={formData.longitude || ''}
+            onChange={(e) => setFormData({ ...formData, longitude: Number(e.target.value) })}
+            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            placeholder="e.g. 101.7749"
+          />
+        </div>
+      </div>
+
       {/* Description */}
       <div>
         <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Description</label>
@@ -901,7 +957,7 @@ export const PropertiesView = () => {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -964,76 +1020,146 @@ export const PropertiesView = () => {
           {properties.length === 0 ? 'No properties in the database' : 'No properties match your filter'}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredProperties.map(property => (
-            <Card key={property.id} className="p-0 overflow-hidden group border-0 ring-1 ring-slate-200/50 hover:ring-blue-300 transition-all">
-              <div className="h-52 overflow-hidden relative">
-                <img
-                  src={getPropertyImage(property.id)}
-                  alt={property.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = DEFAULT_PROPERTY_IMAGE;
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-80"></div>
+        <>
+          {/* Results info */}
+          <div className="text-sm text-slate-500 mb-4">
+            Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredProperties.length)} of {filteredProperties.length} properties
+          </div>
 
-                <div className="absolute top-4 right-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-lg backdrop-blur-md border border-white/20 capitalize ${getStatusStyle(property.status)}`}>
-                    {property.status}
-                  </span>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {paginatedProperties.map(property => (
+              <Card key={property.id} className="p-0 overflow-hidden group border-0 ring-1 ring-slate-200/50 hover:ring-blue-300 transition-all">
+                <div className="h-52 overflow-hidden relative">
+                  <img
+                    src={getPropertyImage(property.id)}
+                    alt={property.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = DEFAULT_PROPERTY_IMAGE;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-80"></div>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                  <h3 className="font-bold text-lg text-white leading-tight mb-1 line-clamp-1">{property.title}</h3>
-                  <p className="text-sm text-slate-200 font-medium line-clamp-1">{property.address}</p>
-                </div>
-              </div>
-
-              <div className="p-5">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-2xl font-bold text-slate-800">
-                    RM{property.price.toLocaleString()}
-                    <span className="text-sm text-slate-400 font-medium ml-1">/mo</span>
-                  </span>
-                  <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md uppercase tracking-wide">
-                    {property.category || 'N/A'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm text-slate-500 mb-4">
-                  <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                    <span className="font-medium">{property.beds} Bedrooms</span>
+                  <div className="absolute top-4 right-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-lg backdrop-blur-md border border-white/20 capitalize ${getStatusStyle(property.status)}`}>
+                      {property.status}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                    <span className="font-medium">{property.bathrooms} Bathrooms</span>
+
+                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                    <h3 className="font-bold text-lg text-white leading-tight mb-1 line-clamp-1">{property.title}</h3>
+                    <p className="text-sm text-slate-200 font-medium line-clamp-1">{property.address}</p>
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-400 mb-4">
-                  Owner: <span className="text-slate-600 font-medium">{property.owner_name}</span>
-                </div>
+                <div className="p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-2xl font-bold text-slate-800">
+                      RM{property.price.toLocaleString()}
+                      <span className="text-sm text-slate-400 font-medium ml-1">/mo</span>
+                    </span>
+                    <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md uppercase tracking-wide">
+                      {property.category || 'N/A'}
+                    </span>
+                  </div>
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleEdit(property)}
-                    className="flex-1 px-3 py-2 text-xs border border-slate-200 bg-white rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-all font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(property.id)}
-                    className="flex-1 px-3 py-2 text-xs border border-slate-200 bg-white rounded-lg hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition-all font-medium"
-                  >
-                    Delete
-                  </button>
+                  <div className="grid grid-cols-2 gap-3 text-sm text-slate-500 mb-4">
+                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                      <span className="font-medium">{property.beds} Bedrooms</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                      <span className="font-medium">{property.bathrooms} Bathrooms</span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-400 mb-4">
+                    Owner: <span className="text-slate-600 font-medium">{property.owner_name}</span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleEdit(property)}
+                      className="flex-1 px-3 py-2 text-xs border border-slate-200 bg-white rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-all font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(property.id)}
+                      className="flex-1 px-3 py-2 text-xs border border-slate-200 bg-white rounded-lg hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition-all font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                First
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Prev
+              </button>
+
+              {/* Page numbers */}
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-10 h-10 text-sm rounded-lg font-medium transition-all ${currentPage === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
               </div>
-            </Card>
-          ))}
-        </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Last
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Edit Modal */}

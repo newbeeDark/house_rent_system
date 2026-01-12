@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 interface Props {
@@ -9,7 +9,6 @@ interface Props {
 
 export const ProfileSidebar: React.FC<Props> = ({ isOpen, onClose }) => {
     const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const sidebarRef = useRef<HTMLDivElement>(null);
 
     // Close on click outside
@@ -36,7 +35,7 @@ export const ProfileSidebar: React.FC<Props> = ({ isOpen, onClose }) => {
     const handleLogout = () => {
         onClose();
         logout();
-        navigate('/');
+        // logout() already redirects to /login via window.location.href
     };
 
     return (
